@@ -8,6 +8,7 @@
  */
 
 import Phaser from 'phaser';
+import { AssetManager } from '../assets/asset-manager';
 
 /**
  * LoadingScene class
@@ -65,25 +66,23 @@ export class LoadingScene extends Phaser.Scene {
       progressBar.fillRect(width / 2 - 150, height / 2 - 15, 300 * value, 30);
     });
 
+    // Load game assets
+    // First, preload any external assets (none in this minimal implementation)
+    AssetManager.preloadAssets(this);
+
+    // Then create programmatically generated assets
+    AssetManager.createAssets(this);
+
     // Register event handler for the 'complete' event
-    // This cleans up the loading UI when all assets are loaded
+    // This cleans up the loading UI and transitions to the main scene after a short delay
     this.load.on('complete', () => {
       // Remove the progress bar graphics
       progressBar.destroy();
       progressBox.destroy();
       loadingText.destroy();
-      // Start the main game scene
-      this.scene.start('MainScene');
-    });
 
-    // Load game assets here
-    // TODO: Add actual asset loading code when assets are available
-    // Example: this.load.image('road', 'assets/images/road-background.png');
-    // Example: this.load.spritesheet('character', 'assets/images/character-sprite.png', { frameWidth: 32, frameHeight: 48 });
-
-    // Add a small delay to show the loading screen even if assets load quickly
-    // This ensures players can see the loading screen even with fast connections
-    this.load.on('complete', () => {
+      // Add a small delay to show the loading screen even if assets load quickly
+      // This ensures players can see the loading screen even with fast connections
       setTimeout(() => {
         this.scene.start('MainScene');
       }, 500); // 500ms delay

@@ -108,7 +108,7 @@ This approach is analogous to Python's virtual environments and `requirements.tx
   - **Status:** [ ]
 
 - **Requirement 3.3:** A loading screen must be implemented to inform the player that assets are being loaded.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 - **Requirement 3.4:** A character sprite must be present on the road, representing the player's controllable entity.
   - **Status:** [ ]
@@ -147,13 +147,13 @@ This approach is analogous to Python's virtual environments and `requirements.tx
 ## 6. Asset Management
 
 - **Requirement 6.1:** All game assets, including images and sounds, must be preloaded before the game starts to ensure smooth gameplay.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 - **Requirement 6.2:** Assets must be optimized for performance to minimize load times and enhance the player's experience.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 - **Requirement 6.3:** A simple asset management system should be implemented to efficiently load, organize, and access game assets.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 ## 7. User Interface
 
