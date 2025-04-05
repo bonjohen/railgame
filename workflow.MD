@@ -55,21 +55,21 @@ Each requirement is marked with a status indicator:
 
 **Objective:** Develop a minimal but functional user interface with menu options for pause and exit functionality. Ensure the UI is responsive to different screen sizes.
 
-**Status:** [ ]
+**Status:** [✓]
 
 **Relevant Requirements:**
 
-- [ ] 5.1: Add a vertical ellipsis (⋮) button in the upper-right corner for accessing the game menu.
+- [✓] 5.1: Add a vertical ellipsis (⋮) button in the upper-right corner for accessing the game menu.
 
-- [ ] 5.1.1: Configure the button to pause the game and display a "Menu" with "Resume" and "Exit" options.
+- [✓] 5.1.1: Configure the button to pause the game and display a "Menu" with "Resume" and "Exit" options.
 
-- [ ] 5.1.1.1: Selecting "Resume" should close the menu and resume gameplay.
+- [✓] 5.1.1.1: Selecting "Resume" should close the menu and resume gameplay.
 
-- [ ] 5.1.1.2: Selecting "Exit" should prompt a confirmation dialog with "Yes" and "Cancel" options.
+- [✓] 5.1.1.2: Selecting "Exit" should prompt a confirmation dialog with "Yes" and "Cancel" options.
 
-- [ ] 7.1: Ensure the user interface provides clear feedback.
+- [✓] 7.1: Ensure the user interface provides clear feedback.
 
-- [ ] 7.3: Ensure the user interface adapts to various screen sizes and orientations.
+- [✓] 7.3: Ensure the user interface adapts to various screen sizes and orientations.
 
 ## 4. Performance Optimization and Compatibility
 

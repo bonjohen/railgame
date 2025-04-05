@@ -31,14 +31,18 @@ export class MainScene extends Phaser.Scene {
       characterSpeed: 5,      // Speed of character movement
       roadWidth: 0.8,         // Width of the road as a percentage of the game width
       depthElementsCount: 5,  // Number of depth elements to create
-      depthElementSpeed: 3    // Speed of depth elements
+      depthElementSpeed: 3,   // Speed of depth elements
+      buttonScale: 1.1,       // Scale factor for button hover effect
+      buttonScaleSpeed: 200   // Speed of button scale animation in ms
     };
 
     // Game state
     this.state = {
       isMovingLeft: false,
       isMovingRight: false,
-      isPaused: false
+      isPaused: false,
+      menuOpen: false,
+      confirmDialogOpen: false
     };
   }
 
@@ -194,21 +198,217 @@ export class MainScene extends Phaser.Scene {
    */
   createMenuButton() {
     // Add menu button in the upper-right corner
-    const menuButton = this.add.image(
+    this.menuButton = this.add.image(
       this.gameWidth - 30,           // x position (near right edge)
       30,                            // y position (near top)
       AssetManager.keys.menuButton   // texture key
     );
 
     // Make the menu button interactive
-    menuButton.setInteractive();
+    this.menuButton.setInteractive({ useHandCursor: true });
+
+    // Add hover effects for visual feedback
+    this.menuButton.on('pointerover', () => {
+      this.tweens.add({
+        targets: this.menuButton,
+        scale: this.config.buttonScale,
+        duration: this.config.buttonScaleSpeed,
+        ease: 'Power2'
+      });
+    });
+
+    this.menuButton.on('pointerout', () => {
+      this.tweens.add({
+        targets: this.menuButton,
+        scale: 1,
+        duration: this.config.buttonScaleSpeed,
+        ease: 'Power2'
+      });
+    });
 
     // Add click/tap event handler for the menu button
-    menuButton.on('pointerdown', () => {
-      // Pause the game and show menu
-      console.log('Menu button clicked');
-      // TODO: Implement menu functionality in Section 3
+    this.menuButton.on('pointerdown', () => {
+      // Toggle menu visibility
+      if (!this.state.menuOpen && !this.state.confirmDialogOpen) {
+        this.openMenu();
+      }
     });
+  }
+
+  /**
+   * Creates and displays the game menu
+   */
+  openMenu() {
+    // Pause the game
+    this.state.isPaused = true;
+    this.state.menuOpen = true;
+
+    // Create semi-transparent background
+    this.menuOverlay = this.add.rectangle(
+      this.gameWidth / 2,
+      this.gameHeight / 2,
+      this.gameWidth,
+      this.gameHeight,
+      0x000000,
+      0.7
+    );
+
+    // Create menu container
+    this.menuContainer = this.add.container(this.gameWidth / 2, this.gameHeight / 2);
+
+    // Create menu panel
+    const menuPanel = this.add.rectangle(0, 0, 300, 200, 0x333333, 0.9);
+    menuPanel.setStrokeStyle(2, 0xffffff);
+
+    // Create menu title
+    const menuTitle = this.add.text(0, -70, 'Menu', {
+      font: '32px Arial',
+      fill: '#ffffff'
+    }).setOrigin(0.5);
+
+    // Create Resume button
+    const resumeButton = this.add.text(0, -20, 'Resume', {
+      font: '24px Arial',
+      fill: '#ffffff'
+    }).setOrigin(0.5);
+
+    resumeButton.setInteractive({ useHandCursor: true });
+
+    // Add hover effects
+    resumeButton.on('pointerover', () => {
+      resumeButton.setScale(this.config.buttonScale);
+    });
+
+    resumeButton.on('pointerout', () => {
+      resumeButton.setScale(1);
+    });
+
+    resumeButton.on('pointerdown', () => {
+      this.closeMenu();
+    });
+
+    // Create Exit button
+    const exitButton = this.add.text(0, 30, 'Exit', {
+      font: '24px Arial',
+      fill: '#ffffff'
+    }).setOrigin(0.5);
+
+    exitButton.setInteractive({ useHandCursor: true });
+
+    // Add hover effects
+    exitButton.on('pointerover', () => {
+      exitButton.setScale(this.config.buttonScale);
+    });
+
+    exitButton.on('pointerout', () => {
+      exitButton.setScale(1);
+    });
+
+    exitButton.on('pointerdown', () => {
+      this.openExitConfirmation();
+    });
+
+    // Add elements to the menu container
+    this.menuContainer.add([menuPanel, menuTitle, resumeButton, exitButton]);
+  }
+
+  /**
+   * Closes the game menu
+   */
+  closeMenu() {
+    // Resume the game
+    this.state.isPaused = false;
+    this.state.menuOpen = false;
+
+    // Destroy menu elements
+    if (this.menuOverlay) this.menuOverlay.destroy();
+    if (this.menuContainer) this.menuContainer.destroy();
+  }
+
+  /**
+   * Opens the exit confirmation dialog
+   */
+  openExitConfirmation() {
+    // Set state
+    this.state.confirmDialogOpen = true;
+
+    // Hide the menu
+    this.menuContainer.visible = false;
+
+    // Create confirmation dialog container
+    this.exitConfirmationContainer = this.add.container(this.gameWidth / 2, this.gameHeight / 2);
+
+    // Create dialog panel
+    const dialogPanel = this.add.rectangle(0, 0, 400, 200, 0x333333, 0.9);
+    dialogPanel.setStrokeStyle(2, 0xffffff);
+
+    // Create confirmation message
+    const confirmMessage = this.add.text(0, -50, 'Are you sure you want to leave the game?', {
+      font: '20px Arial',
+      fill: '#ffffff',
+      align: 'center',
+      wordWrap: { width: 350 }
+    }).setOrigin(0.5);
+
+    // Create Yes button
+    const yesButton = this.add.text(-70, 30, 'Yes', {
+      font: '24px Arial',
+      fill: '#ffffff'
+    }).setOrigin(0.5);
+
+    yesButton.setInteractive({ useHandCursor: true });
+
+    // Add hover effects
+    yesButton.on('pointerover', () => {
+      yesButton.setScale(this.config.buttonScale);
+    });
+
+    yesButton.on('pointerout', () => {
+      yesButton.setScale(1);
+    });
+
+    yesButton.on('pointerdown', () => {
+      // Exit the game (reload the page for simplicity)
+      window.location.reload();
+    });
+
+    // Create Cancel button
+    const cancelButton = this.add.text(70, 30, 'Cancel', {
+      font: '24px Arial',
+      fill: '#ffffff'
+    }).setOrigin(0.5);
+
+    cancelButton.setInteractive({ useHandCursor: true });
+
+    // Add hover effects
+    cancelButton.on('pointerover', () => {
+      cancelButton.setScale(this.config.buttonScale);
+    });
+
+    cancelButton.on('pointerout', () => {
+      cancelButton.setScale(1);
+    });
+
+    cancelButton.on('pointerdown', () => {
+      this.closeExitConfirmation();
+    });
+
+    // Add elements to the confirmation container
+    this.exitConfirmationContainer.add([dialogPanel, confirmMessage, yesButton, cancelButton]);
+  }
+
+  /**
+   * Closes the exit confirmation dialog
+   */
+  closeExitConfirmation() {
+    // Update state
+    this.state.confirmDialogOpen = false;
+
+    // Show the menu again
+    this.menuContainer.visible = true;
+
+    // Destroy confirmation dialog
+    if (this.exitConfirmationContainer) this.exitConfirmationContainer.destroy();
   }
 
   /**

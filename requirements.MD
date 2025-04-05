@@ -127,22 +127,22 @@ This approach is analogous to Python's virtual environments and `requirements.tx
 ## 5. Game Menu
 
 - **Requirement 5.1:** A vertical ellipsis (⋮) button must be displayed in the upper-right corner of the game screen, allowing access to the game menu.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 - **Requirement 5.1.1:** Tapping the vertical ellipsis button must pause the game and display a menu titled "Menu" with two options: "Resume" and "Exit."
-  - **Status:** [ ]
+  - **Status:** [✓]
 
   - **Requirement 5.1.1.1:** Selecting "Resume" must close the menu and resume gameplay from the paused state.
-    - **Status:** [ ]
+    - **Status:** [✓]
 
   - **Requirement 5.1.1.2:** Selecting "Exit" must display a confirmation dialog asking, "Are you sure you want to leave the game?" with "Yes" and "Cancel" options.
-    - **Status:** [ ]
+    - **Status:** [✓]
 
     - **Requirement 5.1.1.2.1:** Choosing "Yes" in the confirmation dialog must exit the game.
-      - **Status:** [ ]
+      - **Status:** [✓]
 
     - **Requirement 5.1.1.2.2:** Choosing "Cancel" in the confirmation dialog must return the player to the game menu without resuming gameplay.
-      - **Status:** [ ]
+      - **Status:** [✓]
 
 ## 6. Asset Management
 
@@ -158,13 +158,13 @@ This approach is analogous to Python's virtual environments and `requirements.tx
 ## 7. User Interface
 
 - **Requirement 7.1:** The game's user interface must be intuitive and provide clear feedback to the player.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 - **Requirement 7.2:** The vertical ellipsis button and game menu options must be clearly visible and distinguishable from other game elements.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 - **Requirement 7.3:** The user interface should be responsive and adapt to different screen sizes and orientations.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 ## 8. Performance
 
