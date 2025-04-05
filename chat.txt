@@ -1,0 +1,35 @@
+A time log of statements made to the AI
+
+2:00 - 5:00 Work through refining the requirements, workflow, and steps. Manually worked through setup and document generation.  
+
+5:00 Please begin work on Section 1: Project Setup and Asset Management of the steps.
+As you proceed through the steps mark them as complete. If you identify a need for steps we will discuss what to do.  Complete as much as possible in as few Agent requests as possible. Pause at the completion of each workflow section.
+
+Please confirm the environment is set up properly. Report back with any differences.
+Please execute all tests.
+
+GitHub Copilot gave a suggestion. 
+Duplicate registration of the 'complete' event listener is detected. Consider consolidating the two listeners (one for cleanup and one for the delayed scene start) to avoid multiple scene transition invocations.
+
+Please explain it to me, and - fix it.
+
+Please execute all tests.
+
+Please begin work on 2. Core Gameplay Mechanics of the steps.
+As you proceed through the steps mark them as complete. If you identify a need for steps we will discuss what to do.  Complete as much as possible in as few Agent requests as possible. Pause at the completion of each workflow section.
+
+Please confirm environment setup and execute all tests.
+
+Section 3: User Interface and Controls
+As you proceed through the steps mark them as complete. If you identify a need for steps we will discuss what to do.  Complete as much as possible in as few Agent requests as possible. Pause at the completion of each workflow section. 5:50
+
+
+Please confirm environment setup and execute all tests.
+
+
+6:00 Please begin work on Section 4: Performance Optimization and Compatibility
+As you proceed through the steps mark them as complete. If you identify a need for steps we will discuss what to do.  Complete as much as possible in as few Agent requests as possible. Pause at the completion of each workflow section.
+
+Please confirm environment setup and execute all tests.
+
+6:15 final check in.

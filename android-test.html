@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rail Game - Android Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #device-info {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            border-radius: 5px;
+            max-width: 80%;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <div id="device-info">Loading device info...</div>
+    
+    <script>
+        // Display device information
+        function displayDeviceInfo() {
+            const deviceInfo = document.getElementById('device-info');
+            const info = {
+                userAgent: navigator.userAgent,
+                screenWidth: window.innerWidth,
+                screenHeight: window.innerHeight,
+                pixelRatio: window.devicePixelRatio,
+                orientation: window.innerWidth > window.innerHeight ? 'landscape' : 'portrait',
+                touchSupport: 'ontouchstart' in window
+            };
+            
+            deviceInfo.innerHTML = `
+                <strong>Device Info:</strong><br>
+                Screen: ${info.screenWidth}x${info.screenHeight} (${info.orientation})<br>
+                Pixel Ratio: ${info.pixelRatio}<br>
+                Touch Support: ${info.touchSupport ? 'Yes' : 'No'}<br>
+                <button onclick="toggleDeviceInfo()">Hide</button>
+            `;
+        }
+        
+        // Toggle device info visibility
+        function toggleDeviceInfo() {
+            const deviceInfo = document.getElementById('device-info');
+            if (deviceInfo.style.display === 'none') {
+                deviceInfo.style.display = 'block';
+                deviceInfo.innerHTML = deviceInfo.innerHTML.replace('Show', 'Hide');
+            } else {
+                deviceInfo.style.display = 'none';
+                deviceInfo.innerHTML = deviceInfo.innerHTML.replace('Hide', 'Show');
+            }
+        }
+        
+        // Handle orientation changes
+        window.addEventListener('orientationchange', function() {
+            setTimeout(displayDeviceInfo, 300);
+        });
+        
+        // Initialize when the page loads
+        window.addEventListener('load', function() {
+            displayDeviceInfo();
+            
+            // Load the game script
+            const script = document.createElement('script');
+            script.src = 'dist/bundle.js';
+            document.body.appendChild(script);
+        });
+    </script>
+</body>
+</html>

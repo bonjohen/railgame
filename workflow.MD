@@ -75,15 +75,15 @@ Each requirement is marked with a status indicator:
 
 **Objective:** Optimize the game for performance and ensure it functions correctly on Android devices. Conduct basic testing to verify functionality and responsiveness.
 
-**Status:** [ ]
+**Status:** [✓]
 
 **Relevant Requirements:**
 
-- [ ] 8.1: Maintain a consistent frame rate for smooth animations and responsive controls.
+- [✓] 8.1: Maintain a consistent frame rate for smooth animations and responsive controls.
 
-- [ ] 8.2: Manage memory usage effectively for efficiency across devices.
+- [✓] 8.2: Manage memory usage effectively for efficiency across devices.
 
-- [ ] 9.1: Verify the game operates correctly within the Android Emulator provided by Android Studio.
+- [✓] 9.1: Verify the game operates correctly within the Android Emulator provided by Android Studio.
 
-- [ ] 9.2: Ensure the game is responsive and playable on various Android device screen sizes.
+- [✓] 9.2: Ensure the game is responsive and playable on various Android device screen sizes.
 

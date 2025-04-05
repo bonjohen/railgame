@@ -169,18 +169,18 @@ This approach is analogous to Python's virtual environments and `requirements.tx
 ## 8. Performance
 
 - **Requirement 8.1:** The game must maintain a consistent frame rate to ensure smooth animations and responsive controls.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 - **Requirement 8.2:** Memory usage must be managed effectively to ensure the game runs efficiently on various devices.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 ## 9. Compatibility
 
 - **Requirement 9.1:** The game must function correctly within the Android Emulator provided by Android Studio.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 - **Requirement 9.2:** The game must be responsive and playable on different screen sizes of Android devices.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 ## 10. Documentation
 

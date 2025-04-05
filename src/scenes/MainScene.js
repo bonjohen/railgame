@@ -9,6 +9,8 @@
 
 import Phaser from 'phaser';
 import { AssetManager } from '../assets/asset-manager';
+import { PerformanceMonitor } from '../utils/performance-monitor';
+import { ObjectPool } from '../utils/object-pool';
 
 /**
  * MainScene class
@@ -33,7 +35,10 @@ export class MainScene extends Phaser.Scene {
       depthElementsCount: 5,  // Number of depth elements to create
       depthElementSpeed: 3,   // Speed of depth elements
       buttonScale: 1.1,       // Scale factor for button hover effect
-      buttonScaleSpeed: 200   // Speed of button scale animation in ms
+      buttonScaleSpeed: 200,  // Speed of button scale animation in ms
+      showFPS: true,          // Whether to show the FPS counter
+      maxDepthElements: 10,   // Maximum number of depth elements to create
+      cullingThreshold: 100   // Distance in pixels beyond which objects are culled
     };
 
     // Game state
@@ -42,8 +47,16 @@ export class MainScene extends Phaser.Scene {
       isMovingRight: false,
       isPaused: false,
       menuOpen: false,
-      confirmDialogOpen: false
+      confirmDialogOpen: false,
+      frameCount: 0,          // Counter for frames
+      lastOptimizationTime: 0 // Timestamp of last optimization check
     };
+
+    // Performance monitoring
+    this.performanceMonitor = null;
+
+    // Object pooling
+    this.depthElementPool = null;
   }
 
   /**
@@ -57,11 +70,20 @@ export class MainScene extends Phaser.Scene {
     this.gameWidth = this.cameras.main.width;
     this.gameHeight = this.cameras.main.height;
 
+    // Initialize performance monitor
+    this.performanceMonitor = new PerformanceMonitor(this, {
+      showFPS: this.config.showFPS,
+      updateInterval: 1000
+    });
+
     // Create the road background as a tile sprite
     this.createRoadBackground();
 
     // Create the character sprite
     this.createCharacter();
+
+    // Initialize object pool for depth elements
+    this.initializeObjectPool();
 
     // Create depth elements for forward motion illusion
     this.createDepthElements();
@@ -71,6 +93,24 @@ export class MainScene extends Phaser.Scene {
 
     // Add menu button (vertical ellipsis) in the upper-right corner
     this.createMenuButton();
+
+    // Add keyboard shortcut for toggling FPS display (F key)
+    this.input.keyboard.on('keydown-F', () => {
+      this.performanceMonitor.toggleFPSDisplay();
+    });
+
+    // Add keyboard shortcut for optimizing performance (O key)
+    this.input.keyboard.on('keydown-O', () => {
+      this.optimizePerformance();
+    });
+
+    // Set up periodic performance optimization
+    this.time.addEvent({
+      delay: 10000, // Check every 10 seconds
+      callback: this.optimizePerformance,
+      callbackScope: this,
+      loop: true
+    });
   }
 
   /**
@@ -111,7 +151,47 @@ export class MainScene extends Phaser.Scene {
   }
 
   /**
-   * Creates visual elements that move from top to bottom to create depth perception
+   * Initialize the object pool for depth elements
+   */
+  initializeObjectPool() {
+    // Create a texture for depth elements if it doesn't exist
+    if (!this.textures.exists('depthElement')) {
+      const graphics = this.add.graphics();
+      graphics.fillStyle(0xFFFFFF, 0.7); // White with some transparency
+      graphics.fillCircle(0, 0, 10); // Size 10 circle
+      graphics.generateTexture('depthElement', 20, 20);
+      graphics.destroy();
+    }
+
+    // Create factory function for depth elements
+    const factory = () => {
+      const sprite = this.add.sprite(0, 0, 'depthElement');
+      sprite.visible = false; // Start invisible
+      return {
+        sprite: sprite,
+        speed: 0,
+        scale: 1,
+        active: false
+      };
+    };
+
+    // Create reset function for depth elements
+    const reset = (element) => {
+      element.sprite.visible = false;
+      element.sprite.x = 0;
+      element.sprite.y = 0;
+      element.sprite.setScale(1);
+      element.speed = 0;
+      element.scale = 1;
+      element.active = false;
+    };
+
+    // Initialize the object pool
+    this.depthElementPool = new ObjectPool(factory, reset, this.config.maxDepthElements);
+  }
+
+  /**
+   * Creates depth elements for forward motion illusion
    */
   createDepthElements() {
     // Create a group for depth elements
@@ -119,32 +199,20 @@ export class MainScene extends Phaser.Scene {
 
     // Create multiple depth elements
     for (let i = 0; i < this.config.depthElementsCount; i++) {
-      // Create a circle graphic
-      const graphics = this.add.graphics();
-      graphics.fillStyle(0xFFFFFF, 0.7); // White with some transparency
+      // Get an element from the pool
+      const element = this.depthElementPool.get();
 
-      // Random size between 5 and 15
-      const size = Phaser.Math.Between(5, 15);
-      graphics.fillCircle(0, 0, size);
+      // Configure the element
+      element.sprite.x = Phaser.Math.Between(this.leftBoundary, this.rightBoundary);
+      element.sprite.y = Phaser.Math.Between(-100, this.gameHeight);
+      element.speed = Phaser.Math.FloatBetween(1, 3) * this.config.depthElementSpeed;
+      element.scale = Phaser.Math.FloatBetween(0.5, 1.5);
+      element.sprite.setScale(element.scale);
+      element.sprite.visible = true;
+      element.active = true;
 
-      // Generate a texture from the graphics
-      const textureName = `depthElement${i}`;
-      graphics.generateTexture(textureName, size * 2, size * 2);
-      graphics.destroy();
-
-      // Create a sprite with the generated texture
-      const element = this.add.sprite(
-        Phaser.Math.Between(this.leftBoundary, this.rightBoundary), // Random x position on the road
-        Phaser.Math.Between(-100, this.gameHeight),                // Random y position
-        textureName
-      );
-
-      // Add to the array with additional properties
-      this.depthElements.push({
-        sprite: element,
-        speed: Phaser.Math.FloatBetween(1, 3) * this.config.depthElementSpeed,
-        scale: Phaser.Math.FloatBetween(0.5, 1.5)
-      });
+      // Add to the active elements array
+      this.depthElements.push(element);
     }
   }
 
@@ -412,12 +480,51 @@ export class MainScene extends Phaser.Scene {
   }
 
   /**
+   * Optimize game performance based on current FPS
+   */
+  optimizePerformance() {
+    const fps = this.performanceMonitor.getFPS();
+    console.log(`Optimizing performance. Current FPS: ${fps}`);
+
+    // If FPS is too low, reduce visual elements
+    if (fps < 30) {
+      // Reduce number of depth elements
+      if (this.depthElements.length > 2) {
+        const element = this.depthElements.pop();
+        this.depthElementPool.release(element);
+        console.log(`Reduced depth elements to ${this.depthElements.length}`);
+      }
+    }
+    // If FPS is good and we have capacity, add more visual elements
+    else if (fps > 55 && this.depthElements.length < this.config.maxDepthElements) {
+      // Add a new depth element
+      const element = this.depthElementPool.get();
+
+      // Configure the element
+      element.sprite.x = Phaser.Math.Between(this.leftBoundary, this.rightBoundary);
+      element.sprite.y = -50;
+      element.speed = Phaser.Math.FloatBetween(1, 3) * this.config.depthElementSpeed;
+      element.scale = Phaser.Math.FloatBetween(0.5, 1.5);
+      element.sprite.setScale(element.scale);
+      element.sprite.visible = true;
+      element.active = true;
+
+      // Add to the active elements array
+      this.depthElements.push(element);
+      console.log(`Increased depth elements to ${this.depthElements.length}`);
+    }
+  }
+
+  /**
    * Update method - automatically called by Phaser on each frame
    * Handles game logic that needs to run continuously
    */
   update() {
     // Skip updates if the game is paused
     if (this.state.isPaused) return;
+
+    // Update performance monitor
+    this.performanceMonitor.update();
 
     // Update road scrolling
     this.road.tilePositionY += this.config.roadSpeed;
@@ -431,8 +538,13 @@ export class MainScene extends Phaser.Scene {
       this.character.x += this.config.characterSpeed;
     }
 
-    // Update depth elements
-    for (const element of this.depthElements) {
+    // Update depth elements with culling optimization
+    for (let i = 0; i < this.depthElements.length; i++) {
+      const element = this.depthElements[i];
+
+      // Skip inactive elements
+      if (!element.active) continue;
+
       // Move the element down
       element.sprite.y += element.speed;
 
@@ -442,8 +554,8 @@ export class MainScene extends Phaser.Scene {
       element.sprite.setScale(newScale);
 
       // Reset the element when it goes off screen
-      if (element.sprite.y > this.gameHeight + 50) {
-        element.sprite.y = -50;
+      if (element.sprite.y > this.gameHeight + this.config.cullingThreshold) {
+        element.sprite.y = -this.config.cullingThreshold;
         element.sprite.x = Phaser.Math.Between(this.leftBoundary, this.rightBoundary);
         element.sprite.setScale(element.scale);
       }
