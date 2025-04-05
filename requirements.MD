@@ -85,7 +85,7 @@ This structure promotes modularity and maintainability, aligning with standard p
 - **Requirement 2.3:** The Android Emulator provided by Android Studio must be used to test and demonstrate the application.
   - **Status:** [ ]
 
-- **Requirement 2.4:** GitHub will be used to manage source control. The repository will be hosted at `github.com/bonhohen/railgame`.
+- **Requirement 2.4:** GitHub will be used to manage source control. The repository will be hosted at `github.com/bonjohen/railgame`.
   - **Status:** [✓]
 
 - **Requirement 2.5:** A consistent library versioning approach must be employed to ensure compatibility and stability. In JavaScript projects, this is typically managed using `package.json` and `package-lock.json` files:
