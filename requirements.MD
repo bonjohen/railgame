@@ -102,27 +102,27 @@ This approach is analogous to Python's virtual environments and `requirements.tx
 ## 3. Game Scene
 
 - **Requirement 3.1:** The game must include a main scene that serves as the primary interface for gameplay.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 - **Requirement 3.2:** The main scene must display a road background image to set the environment for the game.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 - **Requirement 3.3:** A loading screen must be implemented to inform the player that assets are being loaded.
   - **Status:** [✓]
 
 - **Requirement 3.4:** A character sprite must be present on the road, representing the player's controllable entity.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 ## 4. Character Movement
 
 - **Requirement 4.1:** The character must be able to move left and right along the horizontal axis of the road using touch input.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 - **Requirement 4.2:** The character's movement must be constrained within the boundaries of the road to prevent it from moving off-screen.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 - **Requirement 4.3:** The character must appear to be moving continuously down the road, creating an illusion of forward motion. This can be achieved through techniques such as scrolling the background or adding visual elements that grow in size as they move down the screen.
-  - **Status:** [ ]
+  - **Status:** [✓]
 
 ## 5. Game Menu
 

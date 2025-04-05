@@ -35,21 +35,21 @@ Each requirement is marked with a status indicator:
 
 **Objective:** Create a basic gameplay experience with a character that appears to move continuously down a road. Implement touch controls for left and right movement within defined boundaries.
 
-**Status:** [ ]
+**Status:** [✓]
 
 **Relevant Requirements:**
 
-- [ ] 3.1: Develop the main game scene as the primary interface for gameplay.
+- [✓] 3.1: Develop the main game scene as the primary interface for gameplay.
 
-- [ ] 3.2: Integrate a road background image to establish the game setting.
+- [✓] 3.2: Integrate a road background image to establish the game setting.
 
-- [ ] 3.4: Incorporate a character sprite representing the player's controllable entity.
+- [✓] 3.4: Incorporate a character sprite representing the player's controllable entity.
 
-- [ ] 4.1: Enable character movement left and right along the road using touch input.
+- [✓] 4.1: Enable character movement left and right along the road using touch input.
 
-- [ ] 4.2: Ensure the character's movement is confined within the road boundaries to prevent off-screen navigation.
+- [✓] 4.2: Ensure the character's movement is confined within the road boundaries to prevent off-screen navigation.
 
-- [ ] 4.3: Create an illusion of continuous forward motion down the road (using scrolling background or simple visual elements that grow in size as they move down).
+- [✓] 4.3: Create an illusion of continuous forward motion down the road (using scrolling background or simple visual elements that grow in size as they move down).
 
 ## 3. User Interface and Controls
 
