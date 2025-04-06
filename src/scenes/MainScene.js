@@ -49,7 +49,10 @@ export class MainScene extends Phaser.Scene {
       progress: 0,            // Initial progress value (0-100)
       yellowLineSpeed: -1.5,  // Speed of the yellow line scrolling (negative for opposite direction, reduced by 50%)
       obstacleSpeed: 2,       // Speed of obstacles moving down the road (reduced by 50%)
-      collisionDamage: 10     // Amount of health lost on collision with an obstacle
+      collisionDamage: 10,    // Amount of health lost on collision with an obstacle
+      projectileSpeed: 7.5,   // Speed of projectiles (3x character speed)
+      fireRate: 500,          // Minimum time between shots in milliseconds
+      sparkleSize: 15         // Size of the sparkle projectile
     };
 
     // Game state
@@ -70,11 +73,14 @@ export class MainScene extends Phaser.Scene {
       obstacleSpawnTimer: 0,  // Timer for spawning obstacles
       obstacleSpawnInterval: 2000, // Time between obstacle spawns in ms
       isInvulnerable: false,  // Whether the character is currently invulnerable after a collision
-      invulnerabilityTimer: 0 // Timer for invulnerability period
+      invulnerabilityTimer: 0, // Timer for invulnerability period
+      lastFireTime: 0,        // Time of last projectile fired
+      isFiring: false         // Whether the player is currently firing
     };
 
     // Game objects
-    this.obstacles = []; // Array to store active obstacles
+    this.obstacles = [];     // Array to store active obstacles
+    this.projectiles = [];   // Array to store active projectiles
 
     // Performance monitoring
     this.performanceMonitor = null;
@@ -133,6 +139,9 @@ export class MainScene extends Phaser.Scene {
 
     // Create obstacle group
     this.createObstacleGroup();
+
+    // Create projectile group
+    this.createProjectileGroup();
 
     // Add keyboard shortcut for toggling FPS display (F key)
     this.input.keyboard.on('keydown-F', () => {
@@ -327,6 +336,9 @@ export class MainScene extends Phaser.Scene {
     // Set up keyboard input
     this.cursors = this.input.keyboard.createCursorKeys();
 
+    // Set up space bar for firing
+    this.spaceBar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
     // Handle pointer down (click/touch start)
     this.controlArea.on('pointerdown', (pointer) => {
       // Store the initial position for drag detection
@@ -343,6 +355,9 @@ export class MainScene extends Phaser.Scene {
         this.state.isMovingLeft = false;
         this.state.clickHoldX = pointer.x;
       }
+
+      // Fire a projectile on tap
+      this.fireProjectile();
     });
 
     // Handle pointer move (drag)
@@ -606,6 +621,9 @@ export class MainScene extends Phaser.Scene {
 
     // Make the menu button interactive
     this.menuButton.setInteractive({ useHandCursor: true });
+
+    // Set the depth to ensure it's above other elements
+    this.menuButton.setDepth(100);
 
     // Add hover effects for visual feedback
     this.menuButton.on('pointerover', () => {
@@ -876,6 +894,162 @@ export class MainScene extends Phaser.Scene {
   }
 
   /**
+   * Create projectile group for collision detection
+   */
+  createProjectileGroup() {
+    // Create a physics group for projectiles
+    this.projectileGroup = this.physics.add.group();
+
+    // Set up collision between projectiles and obstacles
+    this.physics.add.overlap(
+      this.projectileGroup,
+      this.obstacleGroup,
+      this.handleProjectileCollision,
+      null,
+      this
+    );
+  }
+
+  /**
+   * Create a sparkle projectile
+   */
+  fireProjectile() {
+    // Check if enough time has passed since the last shot
+    const currentTime = this.time.now;
+    if (currentTime - this.state.lastFireTime < this.config.fireRate) {
+      return; // Fire rate limit not met
+    }
+
+    // Update last fire time
+    this.state.lastFireTime = currentTime;
+
+    // Create the projectile at the character's position
+    const projectile = this.physics.add.sprite(
+      this.character.x,
+      this.character.y - this.character.height / 2, // Spawn above the character
+      'characterTexture' // Reuse character texture for now
+    );
+
+    // Scale down the projectile
+    const projectileSize = this.config.sparkleSize;
+    projectile.setScale(projectileSize / projectile.width);
+
+    // Set the projectile's tint to make it visually distinct (sparkle effect)
+    projectile.setTint(0xffff00); // Yellow tint
+
+    // Set the projectile's depth to be above the road but below the character
+    projectile.setDepth(8);
+
+    // Add the projectile to the physics group
+    this.projectileGroup.add(projectile);
+
+    // Store the projectile in our array for easy access
+    this.projectiles.push(projectile);
+
+    // Add a particle emitter for sparkle effect
+    const particles = this.add.particles(projectile.x, projectile.y, 'characterTexture', {
+      speed: 50,
+      scale: { start: 0.2, end: 0 },
+      blendMode: 'ADD',
+      lifespan: 300,
+      quantity: 1,
+      frequency: 50
+    });
+
+    // Attach the particle emitter to the projectile
+    projectile.particles = particles;
+
+    // Add a glow effect
+    const glow = this.add.sprite(projectile.x, projectile.y, 'characterTexture');
+    glow.setScale(projectileSize * 1.5 / glow.width);
+    glow.setTint(0xffff99);
+    glow.setAlpha(0.5);
+    glow.setBlendMode(Phaser.BlendModes.ADD);
+    glow.setDepth(7);
+    projectile.glow = glow;
+
+    // Play a sound effect (if we had one)
+    // this.sound.play('fire');
+
+    // Return the created projectile
+    return projectile;
+  }
+
+  /**
+   * Handle collision between projectile and obstacle
+   *
+   * @param {Phaser.GameObjects.Sprite} projectile - The projectile sprite
+   * @param {Phaser.GameObjects.Sprite} obstacle - The obstacle sprite
+   */
+  handleProjectileCollision(projectile, obstacle) {
+    // Create an explosion animation
+    this.createExplosionAnimation(obstacle.x, obstacle.y);
+
+    // Remove the projectile
+    this.removeProjectile(projectile);
+
+    // Remove the obstacle
+    this.removeObstacle(obstacle);
+
+    // Increase score
+    this.config.score += 20;
+    this.updateScore(this.config.score);
+
+    // Update progress
+    this.config.progress = Math.min(100, this.config.progress + 2);
+    this.updateProgressBar(this.config.progress);
+  }
+
+  /**
+   * Create an explosion animation at the specified position
+   *
+   * @param {number} x - The x position of the explosion
+   * @param {number} y - The y position of the explosion
+   */
+  createExplosionAnimation(x, y) {
+    // Create a particle emitter for the explosion effect
+    const particles = this.add.particles(x, y, 'characterTexture', {
+      speed: 200,
+      scale: { start: 0.8, end: 0 },
+      blendMode: 'ADD',
+      lifespan: 800,
+      quantity: 20,
+      tint: [0xff0000, 0xff7700, 0xffff00]
+    });
+
+    // Stop the emitter after a short time
+    this.time.delayedCall(800, () => {
+      particles.destroy();
+    });
+  }
+
+  /**
+   * Remove a projectile from the game
+   *
+   * @param {Phaser.GameObjects.Sprite} projectile - The projectile to remove
+   */
+  removeProjectile(projectile) {
+    // Remove from our array
+    const index = this.projectiles.indexOf(projectile);
+    if (index > -1) {
+      this.projectiles.splice(index, 1);
+    }
+
+    // Destroy the particle emitter if it exists
+    if (projectile.particles) {
+      projectile.particles.destroy();
+    }
+
+    // Destroy the glow effect if it exists
+    if (projectile.glow) {
+      projectile.glow.destroy();
+    }
+
+    // Destroy the projectile sprite
+    projectile.destroy();
+  }
+
+  /**
    * Create a new obstacle
    */
   createObstacle() {
@@ -1031,6 +1205,29 @@ export class MainScene extends Phaser.Scene {
       }
     }
 
+    // Update projectiles
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const projectile = this.projectiles[i];
+
+      // Move the projectile up
+      projectile.y -= this.config.projectileSpeed;
+
+      // Update the particle emitter position
+      if (projectile.particles) {
+        projectile.particles.setPosition(projectile.x, projectile.y);
+      }
+
+      // Update the glow effect position
+      if (projectile.glow) {
+        projectile.glow.setPosition(projectile.x, projectile.y);
+      }
+
+      // Remove projectiles that go off screen
+      if (projectile.y < -50) {
+        this.removeProjectile(projectile);
+      }
+    }
+
     // Update invulnerability timer
     if (this.state.isInvulnerable) {
       this.state.invulnerabilityTimer += delta;
@@ -1040,7 +1237,7 @@ export class MainScene extends Phaser.Scene {
       }
     }
 
-    // Handle keyboard input
+    // Handle keyboard input for movement
     if (this.cursors.left.isDown) {
       this.state.isMovingLeft = true;
       this.state.isMovingRight = false;
@@ -1053,6 +1250,11 @@ export class MainScene extends Phaser.Scene {
         this.state.isMovingLeft = false;
         this.state.isMovingRight = false;
       }
+    }
+
+    // Handle space bar for firing
+    if (Phaser.Input.Keyboard.JustDown(this.spaceBar)) {
+      this.fireProjectile();
     }
 
     // Update character position based on input
