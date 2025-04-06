@@ -29,11 +29,11 @@ export class MainScene extends Phaser.Scene {
 
     // Game configuration
     this.config = {
-      roadSpeed: 2,           // Speed of the road scrolling
-      characterSpeed: 5,      // Speed of character movement
+      roadSpeed: 1,           // Speed of the road scrolling (reduced by 50%)
+      characterSpeed: 2.5,    // Speed of character movement (reduced by 50%)
       roadWidth: 0.8,         // Width of the road as a percentage of the game width
       depthElementsCount: 5,  // Number of depth elements to create
-      depthElementSpeed: 3,   // Speed of depth elements
+      depthElementSpeed: 1.5, // Speed of depth elements (reduced by 50%)
       buttonScale: 1.1,       // Scale factor for button hover effect
       buttonScaleSpeed: 200,  // Speed of button scale animation in ms
       showFPS: true,          // Whether to show the FPS counter
@@ -47,8 +47,8 @@ export class MainScene extends Phaser.Scene {
       maxHealth: 100,         // Maximum health value
       score: 0,               // Initial score value
       progress: 0,            // Initial progress value (0-100)
-      yellowLineSpeed: 3,     // Speed of the yellow line scrolling (different from road speed)
-      obstacleSpeed: 4,       // Speed of obstacles moving down the road
+      yellowLineSpeed: -1.5,  // Speed of the yellow line scrolling (negative for opposite direction, reduced by 50%)
+      obstacleSpeed: 2,       // Speed of obstacles moving down the road (reduced by 50%)
       collisionDamage: 10     // Amount of health lost on collision with an obstacle
     };
 
@@ -299,6 +299,7 @@ export class MainScene extends Phaser.Scene {
    * Sets up input handlers for character movement
    * Implements touch controls in the bottom quarter of the screen
    * Supports click-hold and drag gestures
+   * Also supports keyboard arrow keys
    */
   setupInputHandlers() {
     // Calculate the control area dimensions (bottom quarter of the game area, not including top bar)
@@ -322,6 +323,9 @@ export class MainScene extends Phaser.Scene {
       this.gameWidth,              // width (full screen width)
       controlAreaHeight            // height (quarter of the game area height)
     ).setOrigin(0.5).setInteractive();
+
+    // Set up keyboard input
+    this.cursors = this.input.keyboard.createCursorKeys();
 
     // Handle pointer down (click/touch start)
     this.controlArea.on('pointerdown', (pointer) => {
@@ -996,7 +1000,7 @@ export class MainScene extends Phaser.Scene {
     // Update road scrolling
     this.road.tilePositionY += this.config.roadSpeed;
 
-    // Update yellow line scrolling at a different speed
+    // Update yellow line scrolling at a different speed (negative for opposite direction)
     this.yellowLine.tilePositionY += this.config.yellowLineSpeed;
 
     // Update obstacle spawn timer
@@ -1033,6 +1037,21 @@ export class MainScene extends Phaser.Scene {
       if (this.state.invulnerabilityTimer >= 1500) { // 1.5 seconds of invulnerability
         this.state.isInvulnerable = false;
         this.character.alpha = 1; // Ensure character is fully visible
+      }
+    }
+
+    // Handle keyboard input
+    if (this.cursors.left.isDown) {
+      this.state.isMovingLeft = true;
+      this.state.isMovingRight = false;
+    } else if (this.cursors.right.isDown) {
+      this.state.isMovingRight = true;
+      this.state.isMovingLeft = false;
+    } else if (!this.state.isDragging) {
+      // Only reset movement if not using touch/drag controls
+      if (!this.controlArea.input || !this.controlArea.input.isDown) {
+        this.state.isMovingLeft = false;
+        this.state.isMovingRight = false;
       }
     }
 
