@@ -28,8 +28,8 @@
 ## Commit and Sync
 
 - [✓] Update the phase.md file to mark completed items
-- [ ] Commit the changes to the repository
-- [ ] Push the changes to GitHub
+- [✓] Commit the changes to the repository
+- [✓] Push the changes to GitHub
 
 ## Next Steps
 
