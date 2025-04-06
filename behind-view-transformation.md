@@ -49,16 +49,16 @@ We'll use a technique known as "pseudo-3D" or "2.5D" that creates the illusion o
 function projectToScreen(x, z, roadWidth) {
   const cameraHeight = 1000;
   const cameraDepth = 0.84;
-
+  
   // Scale based on distance (z)
   const scale = cameraDepth / z;
-
+  
   // Project x position with perspective
   const projectedX = (this.gameWidth / 2) + (scale * x * this.gameWidth / 2);
-
+  
   // Project y position with perspective
   const projectedY = (this.gameHeight / 2) - (scale * cameraHeight * this.gameWidth / 2);
-
+  
   return {
     x: projectedX,
     y: projectedY,
@@ -71,11 +71,11 @@ function createPerspectiveRoad() {
   // Create road segments that get narrower toward the horizon
   const segments = [];
   const segmentCount = 20;
-
+  
   for (let i = 0; i < segmentCount; i++) {
     const y = this.gameHeight - (i * (this.gameHeight / segmentCount));
     const width = this.gameWidth * (1 - (i / segmentCount) * 0.7);
-
+    
     const segment = this.add.rectangle(
       this.gameWidth / 2,
       y,
@@ -83,10 +83,10 @@ function createPerspectiveRoad() {
       this.gameHeight / segmentCount,
       i % 2 === 0 ? 0x333333 : 0x444444
     );
-
+    
     segments.push(segment);
   }
-
+  
   return segments;
 }
 
@@ -96,11 +96,11 @@ function scaleByDistance(sprite, distance) {
   // distance: 0 (closest) to 1 (horizon)
   const scale = 1 - (distance * 0.8);
   sprite.setScale(scale);
-
+  
   // Also adjust y position based on perspective
   const y = this.gameHeight - (this.gameHeight * distance * 0.7);
   sprite.y = y;
-
+  
   return sprite;
 }
 
@@ -109,20 +109,20 @@ function positionInLane(sprite, lane, distance) {
   // Position an object in a specific lane at a specific distance
   // lane: 0 (leftmost) to laneCount-1 (rightmost)
   // distance: 0 (closest) to 1 (horizon)
-
+  
   const laneCount = 3; // Example: 3 lanes
   const laneWidth = this.gameWidth * 0.6; // Road width
-
+  
   // Calculate lane center positions
   const laneSize = laneWidth / laneCount;
   const roadLeftEdge = (this.gameWidth - laneWidth) / 2;
   const laneCenter = roadLeftEdge + (lane * laneSize) + (laneSize / 2);
-
+  
   // Adjust for perspective (lanes converge at horizon)
   const perspectiveX = this.gameWidth / 2 + (laneCenter - this.gameWidth / 2) * (1 - distance * 0.8);
-
+  
   sprite.x = perspectiveX;
-
+  
   // Also scale and position vertically
   return this.scaleByDistance(sprite, distance);
 }
