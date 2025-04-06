@@ -166,25 +166,25 @@ function positionInLane(sprite, lane, distance) {
   - Implement camera shake for rough terrain [✓]
   - Create visual feedback for acceleration and deceleration [✓]
 
-### Phase 3: Obstacles and Projectiles in Perspective
+### Phase 3: Obstacles and Projectiles in Perspective [✓]
 
-- **Adapt Obstacle System**
-  - Redesign obstacles to work in the perspective view
-  - Spawn obstacles at the horizon in specific lanes
-  - Implement dynamic scaling as obstacles approach the player
-  - Create distance-based movement speed adjustments
+- **Adapt Obstacle System** [✓]
+  - Redesign obstacles to work in the perspective view [✓]
+  - Spawn obstacles at the horizon in specific lanes [✓]
+  - Implement dynamic scaling as obstacles approach the player [✓]
+  - Create distance-based movement speed adjustments [✓]
 
-- **Transform Projectile System**
-  - Modify projectiles to fire toward the vanishing point
-  - Implement perspective scaling for projectiles
-  - Adjust projectile speed based on virtual distance
-  - Create perspective-correct particle effects
+- **Transform Projectile System** [✓]
+  - Modify projectiles to fire toward the vanishing point [✓]
+  - Implement perspective scaling for projectiles [✓]
+  - Adjust projectile speed based on virtual distance [✓]
+  - Create perspective-correct particle effects [✓]
 
-- **Revamp Collision System**
-  - Implement lane-based collision detection
-  - Create distance-aware hitboxes
-  - Add visual feedback for near misses
-  - Implement collision animations that respect perspective
+- **Revamp Collision System** [✓]
+  - Implement lane-based collision detection [✓]
+  - Create distance-aware hitboxes [✓]
+  - Add visual feedback for near misses [✓]
+  - Implement collision animations that respect perspective [✓]
 
 ### Phase 4: Visual Enhancements and Polish
 

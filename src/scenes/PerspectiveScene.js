@@ -469,6 +469,101 @@ export class PerspectiveScene extends Phaser.Scene {
   }
 
   /**
+   * Detect near misses between character and obstacles
+   * A near miss is when an obstacle passes close to the character without colliding
+   */
+  detectNearMiss() {
+    // Only check for near misses if the character is not invulnerable
+    if (this.state.isInvulnerable) return;
+
+    // Get the character's current lane
+    const characterLane = this.state.currentLane;
+
+    // Check each obstacle
+    for (const obstacle of this.obstacles) {
+      // Skip obstacles that are too far away (near horizon)
+      const distanceFromHorizon = (obstacle.y - this.gameHeight * this.config.horizonLine) /
+                                 (this.gameHeight - this.gameHeight * this.config.horizonLine);
+      if (distanceFromHorizon < 0.7) continue; // Only check obstacles that are close
+
+      // Check if the obstacle is in an adjacent lane
+      const laneDifference = Math.abs(characterLane - obstacle.lane);
+
+      // If the obstacle is in an adjacent lane and is close to the character vertically
+      if (laneDifference === 1 &&
+          Math.abs(obstacle.y - this.character.y) < this.character.height * 0.7) {
+        // This is a near miss!
+        this.createNearMissEffect(obstacle);
+
+        // Increase score slightly for a near miss
+        this.config.score += 5;
+        this.updateScore(this.config.score);
+
+        // Mark the obstacle as having triggered a near miss
+        obstacle.nearMissTriggered = true;
+      }
+    }
+  }
+
+  /**
+   * Create a visual effect for a near miss
+   *
+   * @param {Phaser.GameObjects.Sprite} obstacle - The obstacle that was nearly missed
+   */
+  createNearMissEffect(obstacle) {
+    // Create a flash effect
+    const flash = this.add.rectangle(
+      this.character.x,
+      this.character.y,
+      this.gameWidth,
+      this.gameHeight,
+      0xFFFFFF,
+      0.2
+    );
+    flash.setDepth(100);
+
+    // Fade out and destroy
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      duration: 200,
+      onComplete: () => {
+        flash.destroy();
+      }
+    });
+
+    // Add a text indicator
+    const nearMissText = this.add.text(
+      this.character.x,
+      this.character.y - 50,
+      'NEAR MISS!',
+      {
+        font: '24px Arial',
+        fill: '#FFFF00'
+      }
+    );
+    nearMissText.setOrigin(0.5);
+    nearMissText.setDepth(101);
+
+    // Animate and destroy the text
+    this.tweens.add({
+      targets: nearMissText,
+      y: nearMissText.y - 30,
+      alpha: 0,
+      duration: 800,
+      onComplete: () => {
+        nearMissText.destroy();
+      }
+    });
+
+    // Add camera shake for feedback
+    this.cameras.main.shake(100, 0.005);
+
+    // Add speed lines for visual effect
+    this.createSpeedLines(5); // Create more speed lines than usual
+  }
+
+  /**
    * Update method - automatically called by Phaser on each frame
    * Handles game logic that needs to run continuously
    */
@@ -532,13 +627,21 @@ export class PerspectiveScene extends Phaser.Scene {
     for (let i = this.obstacles.length - 1; i >= 0; i--) {
       const obstacle = this.obstacles[i];
 
-      // Move the obstacle down and scale it based on distance
-      obstacle.y += this.config.obstacleSpeed;
-
-      // Calculate scale based on distance from horizon
+      // Calculate distance from horizon (0 at horizon, 1 at bottom of screen)
       const distanceFromHorizon = (obstacle.y - this.gameHeight * this.config.horizonLine) /
                                  (this.gameHeight - this.gameHeight * this.config.horizonLine);
+
+      // Adjust movement speed based on distance (faster when closer to viewer)
+      const speedFactor = 0.5 + distanceFromHorizon * 1.5; // Range: 0.5x to 2.0x speed
+      obstacle.y += this.config.obstacleSpeed * speedFactor;
+
+      // Scale based on distance from horizon
       obstacle.setScale(0.2 + distanceFromHorizon * 0.8);
+
+      // Update hitbox based on distance
+      if (obstacle.updateHitboxByDistance) {
+        obstacle.updateHitboxByDistance(distanceFromHorizon);
+      }
 
       // Remove obstacles that go off screen
       if (obstacle.y > this.gameHeight + 50) {
@@ -664,13 +767,18 @@ export class PerspectiveScene extends Phaser.Scene {
     if (Phaser.Math.Between(1, 60) === 1) {
       this.createSpeedLines();
     }
+
+    // Check for near misses
+    this.detectNearMiss();
   }
 
   /**
    * Create speed lines for visual feedback of movement
+   *
+   * @param {number} [count] - Optional number of lines to create (if not provided, a random number is used)
    */
-  createSpeedLines() {
-    const lineCount = Phaser.Math.Between(2, 5);
+  createSpeedLines(count) {
+    const lineCount = count || Phaser.Math.Between(2, 5);
 
     for (let i = 0; i < lineCount; i++) {
       // Random position on the sides of the road
@@ -1260,6 +1368,24 @@ export class PerspectiveScene extends Phaser.Scene {
 
     // Store the lane for this obstacle
     obstacle.lane = lane;
+
+    // Set up a method to update the hitbox based on distance
+    obstacle.updateHitboxByDistance = (distance) => {
+      // Calculate hitbox size based on distance (smaller when far away)
+      const hitboxScale = 0.2 + distance * 0.8; // 0.2 at horizon, 1.0 at bottom
+      const width = obstacle.width * 0.7 * hitboxScale;
+      const height = obstacle.height * 0.7 * hitboxScale;
+
+      // Update the physics body size
+      obstacle.body.setSize(width, height);
+      obstacle.body.setOffset(
+        (obstacle.width - width) / 2,
+        (obstacle.height - height) / 2
+      );
+    };
+
+    // Initialize hitbox (will be updated in the update loop)
+    obstacle.updateHitboxByDistance(0); // Start with small hitbox at horizon
 
     // Return the created obstacle
     return obstacle;
