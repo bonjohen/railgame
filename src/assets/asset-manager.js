@@ -7,7 +7,7 @@
  */
 
 import { createRoadTexture, createYellowLineTexture } from './images/road-background';
-import { createCharacterTexture } from './images/character-sprite';
+import { createCharacterTexture, createBackViewCharacterTexture } from './images/character-sprite';
 import { createMenuButtonTexture } from './images/menu-button';
 
 /**
@@ -27,8 +27,9 @@ export class AssetManager {
     // Create the yellow line texture
     createYellowLineTexture(scene, 800, 1200, 'yellowLineTexture');
 
-    // Create the character texture
+    // Create the character textures
     createCharacterTexture(scene, 50, 80, 'characterTexture');
+    createBackViewCharacterTexture(scene, 50, 80, 'backViewCharacterTexture');
 
     // Create the menu button texture
     createMenuButtonTexture(scene, 40, 'menuButtonTexture');
@@ -52,6 +53,7 @@ export class AssetManager {
       road: 'roadTexture',
       yellowLine: 'yellowLineTexture',
       character: 'characterTexture',
+      backViewCharacter: 'backViewCharacterTexture',
       menuButton: 'menuButtonTexture'
     };
   }
