@@ -48,7 +48,7 @@ project-root/
 
 1. Clone the repository:
    ```
-   git clone https://github.com/bonhohen/railgame.git
+   git clone https://github.com/bonjohen/railgame.git
    cd railgame
    ```
 
