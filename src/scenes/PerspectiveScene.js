@@ -1273,8 +1273,8 @@ export class PerspectiveScene extends Phaser.Scene {
       // Add click handler
       button.on('pointerdown', () => {
         if (option === 'Yes') {
-          // Return to main menu or title screen
-          this.scene.start('MainScene');
+          // Show a thank you message and fade out
+          this.showExitMessage();
         } else {
           this.closeExitConfirmation();
         }
@@ -1301,6 +1301,69 @@ export class PerspectiveScene extends Phaser.Scene {
     });
 
     this.confirmButtons = [];
+  }
+
+  /**
+   * Shows an exit message and fades out the game
+   */
+  showExitMessage() {
+    // Close any open dialogs
+    if (this.state.confirmDialogOpen) {
+      this.closeExitConfirmation();
+    }
+    if (this.state.menuOpen) {
+      this.closeMenu();
+    }
+
+    // Pause the game
+    this.state.isPaused = true;
+
+    // Create a full-screen overlay
+    const overlay = this.add.rectangle(
+      this.gameWidth / 2,
+      this.gameHeight / 2,
+      this.gameWidth,
+      this.gameHeight,
+      0x000000,
+      0
+    );
+    overlay.setDepth(1000);
+
+    // Create a thank you message
+    const thankYouText = this.add.text(
+      this.gameWidth / 2,
+      this.gameHeight / 2,
+      'Thank you for playing!',
+      {
+        font: '32px Arial',
+        fill: '#ffffff'
+      }
+    );
+    thankYouText.setOrigin(0.5);
+    thankYouText.setDepth(1001);
+    thankYouText.setAlpha(0);
+
+    // Fade in the overlay and text
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0.9,
+      duration: 1000,
+      ease: 'Power2'
+    });
+
+    this.tweens.add({
+      targets: thankYouText,
+      alpha: 1,
+      duration: 1000,
+      ease: 'Power2',
+      onComplete: () => {
+        // Wait a moment and then restart the scene
+        this.time.delayedCall(2000, () => {
+          // Restart the current scene (PerspectiveScene)
+          this.scene.restart();
+        });
+      }
+    });
   }
 
   /**

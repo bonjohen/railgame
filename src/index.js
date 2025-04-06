@@ -82,7 +82,7 @@ const config = {
     roundPixels: true
   },
   // Array of scenes to include in the game (order matters - first scene will start first)
-  scene: [LoadingScene, MainScene, PerspectiveScene]
+  scene: [LoadingScene, PerspectiveScene]
 };
 
 /**
