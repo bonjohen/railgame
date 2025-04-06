@@ -660,9 +660,36 @@ export class PerspectiveScene extends Phaser.Scene {
     );
     foliage.setDepth(5 - distance * 3);
 
+    // Create shadow
+    const shadowWidth = width * 1.2;
+    const shadowHeight = height * 0.1;
+
+    // Adjust shadow position based on time of day
+    let shadowX = x;
+    let shadowAlpha = 0.3;
+
+    if (this.config.timeOfDay === 'dawn') {
+      shadowX = x + width * 0.5; // Morning sun from the east
+    } else if (this.config.timeOfDay === 'dusk') {
+      shadowX = x - width * 0.5; // Evening sun from the west
+    } else if (this.config.timeOfDay === 'night') {
+      shadowAlpha = 0.1; // Fainter shadow at night
+    }
+
+    const shadow = this.add.ellipse(
+      shadowX,
+      y + height/2,
+      shadowWidth,
+      shadowHeight,
+      0x000000,
+      shadowAlpha
+    );
+    shadow.setDepth(4 - distance * 3); // Below the tree
+
     // Add elements to the array
     this.sideElements.push(trunk);
     this.sideElements.push(foliage);
+    this.sideElements.push(shadow);
   }
 
   /**
@@ -765,9 +792,42 @@ export class PerspectiveScene extends Phaser.Scene {
     );
     roof.setDepth(5 - distance * 3);
 
+    // Create shadow
+    const shadowWidth = width * 1.5;
+    const shadowHeight = height * 0.1;
+
+    // Adjust shadow position based on time of day
+    let shadowX = x;
+    let shadowLength = 1.0;
+    let shadowAlpha = 0.4;
+
+    if (this.config.timeOfDay === 'dawn') {
+      shadowX = x + width * 0.7; // Morning sun from the east
+      shadowLength = 1.5;
+    } else if (this.config.timeOfDay === 'dusk') {
+      shadowX = x - width * 0.7; // Evening sun from the west
+      shadowLength = 1.5;
+    } else if (this.config.timeOfDay === 'day') {
+      shadowLength = 0.8; // Shorter shadow during day
+    } else if (this.config.timeOfDay === 'night') {
+      shadowAlpha = 0.15; // Fainter shadow at night
+      shadowLength = 0.5;
+    }
+
+    const shadow = this.add.ellipse(
+      shadowX,
+      y + height/2,
+      shadowWidth * shadowLength,
+      shadowHeight,
+      0x000000,
+      shadowAlpha
+    );
+    shadow.setDepth(4 - distance * 3); // Below the building
+
     // Add elements to the array
     this.sideElements.push(building);
     this.sideElements.push(roof);
+    this.sideElements.push(shadow);
   }
 
   /**
@@ -1217,6 +1277,35 @@ export class PerspectiveScene extends Phaser.Scene {
       const horizonX = centerX + (normalizedOffset * this.gameWidth * this.config.roadWidth * 0.1);
       obstacle.x = Phaser.Math.Linear(horizonX, lanePosition, distanceFromHorizon);
 
+      // Update shadow position and scale
+      if (obstacle.shadow) {
+        // Position shadow below the obstacle
+        obstacle.shadow.x = obstacle.x;
+        obstacle.shadow.y = obstacle.y + obstacle.height * 0.4 * obstacle.scale;
+
+        // Scale shadow with the obstacle
+        obstacle.shadow.setScale(0.05 + distanceFromHorizon * 0.95);
+
+        // Adjust shadow opacity based on distance (more visible when closer)
+        obstacle.shadow.setAlpha(0.1 + distanceFromHorizon * 0.3);
+
+        // Adjust shadow shape based on time of day
+        if (this.config.timeOfDay === 'day') {
+          // Shorter shadow during day
+          obstacle.shadow.scaleY = obstacle.shadow.scaleX * 0.3;
+        } else if (this.config.timeOfDay === 'dusk' || this.config.timeOfDay === 'dawn') {
+          // Longer shadow during dusk/dawn
+          obstacle.shadow.scaleY = obstacle.shadow.scaleX * 0.6;
+          // Offset shadow position based on sun angle
+          const offset = this.config.timeOfDay === 'dusk' ? -20 : 20;
+          obstacle.shadow.x += offset * distanceFromHorizon;
+        } else if (this.config.timeOfDay === 'night') {
+          // Very faint, diffuse shadow at night
+          obstacle.shadow.scaleY = obstacle.shadow.scaleX * 0.4;
+          obstacle.shadow.setAlpha(0.1 + distanceFromHorizon * 0.1);
+        }
+      }
+
       // Remove obstacles that go off screen
       if (obstacle.y > this.gameHeight + 50) {
         this.removeObstacle(obstacle);
@@ -1252,6 +1341,22 @@ export class PerspectiveScene extends Phaser.Scene {
       if (projectile.glow) {
         projectile.glow.setPosition(projectile.x, projectile.y);
         projectile.glow.setScale(projectile.scale * 1.5);
+      }
+
+      // Update the shadow position and scale
+      if (projectile.shadow) {
+        // Position shadow below the projectile
+        projectile.shadow.setPosition(
+          projectile.x,
+          projectile.y + projectile.height * 0.3 * projectile.scale
+        );
+
+        // Scale shadow with the projectile
+        const shadowScale = projectile.scale * 0.8;
+        projectile.shadow.setScale(shadowScale, shadowScale * 0.3);
+
+        // Adjust shadow opacity based on distance (fade as it approaches horizon)
+        projectile.shadow.setAlpha(Math.max(0.1, distanceToHorizon * 0.3));
       }
 
       // Remove projectiles that reach the horizon
@@ -2048,6 +2153,22 @@ export class PerspectiveScene extends Phaser.Scene {
     // Set the obstacle's depth to be above the road but below the character
     obstacle.setDepth(5);
 
+    // Create a shadow for the obstacle
+    const shadowScale = 0.05; // Match initial obstacle scale
+    const shadow = this.add.ellipse(
+      x,
+      y + 2, // Slightly below the obstacle
+      obstacle.width * 0.8, // Shadow slightly smaller than obstacle width
+      obstacle.height * 0.2, // Flattened ellipse for shadow
+      0x000000, // Black color
+      0.3 // Semi-transparent
+    );
+    shadow.setScale(shadowScale);
+    shadow.setDepth(4); // Below the obstacle
+
+    // Store reference to the shadow
+    obstacle.shadow = shadow;
+
     // Add the obstacle to the physics group
     this.obstacleGroup.add(obstacle);
 
@@ -2159,6 +2280,11 @@ export class PerspectiveScene extends Phaser.Scene {
       this.obstacles.splice(index, 1);
     }
 
+    // Destroy the shadow if it exists
+    if (obstacle.shadow) {
+      obstacle.shadow.destroy();
+    }
+
     // Destroy the obstacle sprite
     obstacle.destroy();
   }
@@ -2220,6 +2346,27 @@ export class PerspectiveScene extends Phaser.Scene {
     glow.setBlendMode(Phaser.BlendModes.ADD);
     glow.setDepth(7);
     projectile.glow = glow;
+
+    // Add a shadow effect
+    const shadow = this.add.ellipse(
+      projectile.x,
+      projectile.y + projectileSize * 0.5,
+      projectileSize * 0.8,
+      projectileSize * 0.2,
+      0x000000,
+      0.3
+    );
+    shadow.setDepth(6);
+    projectile.shadow = shadow;
+
+    // Adjust shadow based on time of day
+    if (this.config.timeOfDay === 'night') {
+      shadow.setAlpha(0.1); // Fainter shadow at night
+    } else if (this.config.timeOfDay === 'dusk') {
+      shadow.x += 5; // Offset shadow for dusk lighting
+    } else if (this.config.timeOfDay === 'dawn') {
+      shadow.x -= 5; // Offset shadow for dawn lighting
+    }
 
     // Return the created projectile
     return projectile;
@@ -2293,6 +2440,11 @@ export class PerspectiveScene extends Phaser.Scene {
     // Destroy the glow effect if it exists
     if (projectile.glow) {
       projectile.glow.destroy();
+    }
+
+    // Destroy the shadow if it exists
+    if (projectile.shadow) {
+      projectile.shadow.destroy();
     }
 
     // Destroy the projectile sprite

@@ -195,7 +195,7 @@ function positionInLane(sprite, lane, distance) {
   - Create distance fog effect for depth enhancement [✓]
 
 - **Implement Advanced Visual Effects**
-  - Add shadows that scale with objects
+  - Add shadows that scale with objects [✓]
   - Create reflection effects on the road surface
   - Implement lens flare and light bloom effects
   - Add screen-space effects for speed and impacts
