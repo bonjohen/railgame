@@ -11,6 +11,7 @@
 import Phaser from 'phaser';
 import { LoadingScene } from './scenes/LoadingScene';
 import { MainScene } from './scenes/MainScene';
+import { PerspectiveScene } from './scenes/PerspectiveScene';
 import { DeviceDetector } from './utils/device-detector';
 
 /**
@@ -81,7 +82,7 @@ const config = {
     roundPixels: true
   },
   // Array of scenes to include in the game (order matters - first scene will start first)
-  scene: [LoadingScene, MainScene]
+  scene: [LoadingScene, MainScene, PerspectiveScene]
 };
 
 /**

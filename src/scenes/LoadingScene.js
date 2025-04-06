@@ -84,7 +84,7 @@ export class LoadingScene extends Phaser.Scene {
       // Add a small delay to show the loading screen even if assets load quickly
       // This ensures players can see the loading screen even with fast connections
       setTimeout(() => {
-        this.scene.start('MainScene');
+        this.scene.start('PerspectiveScene');
       }, 500); // 500ms delay
     });
   }
