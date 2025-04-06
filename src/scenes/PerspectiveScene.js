@@ -455,6 +455,28 @@ export class PerspectiveScene extends Phaser.Scene {
     this.roadSegments = [];
     const segmentCount = this.config.segmentCount;
 
+    // Create a container for reflections
+    this.reflectionContainer = this.add.container(0, 0);
+    this.reflectionContainer.setDepth(3); // Above road but below most elements
+    this.reflections = [];
+
+    // Determine reflection properties based on time of day and weather
+    let reflectionIntensity = 0.2; // Base reflection intensity
+
+    // Adjust reflection intensity based on time of day
+    if (this.config.timeOfDay === 'night') {
+      reflectionIntensity = 0.4; // Stronger reflections at night
+    } else if (this.config.timeOfDay === 'dusk' || this.config.timeOfDay === 'dawn') {
+      reflectionIntensity = 0.3; // Medium reflections at dusk/dawn
+    }
+
+    // Adjust reflection intensity based on weather
+    if (this.config.weather === 'rain') {
+      reflectionIntensity *= 1.5; // Stronger reflections when wet
+    } else if (this.config.weather === 'fog') {
+      reflectionIntensity *= 0.7; // Weaker reflections in fog
+    }
+
     for (let i = 0; i < segmentCount; i++) {
       // Calculate segment position and size
       const segmentHeight = (this.gameHeight - horizonY) / segmentCount;
@@ -473,6 +495,54 @@ export class PerspectiveScene extends Phaser.Scene {
         i % 2 === 0 ? 0x333333 : 0x444444 // Alternating colors
       );
 
+      // Add glossy reflection effect to the road
+      if (i > 0) { // Skip the first segment at the horizon
+        // Create a reflection highlight on the road
+        // The reflection is more visible on the lower part of the road (closer to viewer)
+        const reflectionAlpha = reflectionIntensity * (i / segmentCount); // Stronger reflections closer to viewer
+
+        // Create a gradient reflection that's stronger in the center of the road
+        const reflection = this.add.graphics();
+
+        // Determine reflection color based on time of day
+        let reflectionColor;
+        switch (this.config.timeOfDay) {
+          case 'dawn':
+            reflectionColor = 0xE67E22; // Orange reflection at dawn
+            break;
+          case 'day':
+            reflectionColor = 0x87CEEB; // Sky blue reflection during day
+            break;
+          case 'dusk':
+            reflectionColor = 0xE74C3C; // Red-orange reflection at dusk
+            break;
+          case 'night':
+            reflectionColor = 0xFFFFFF; // White/moonlight reflection at night
+            break;
+          default:
+            reflectionColor = 0xFFFFFF; // Default white reflection
+        }
+
+        // Create a radial gradient for the reflection
+        const gradientWidth = width * 0.8;
+        reflection.fillStyle(reflectionColor, reflectionAlpha);
+        reflection.fillRect(
+          this.gameWidth / 2 - gradientWidth / 2,
+          y,
+          gradientWidth,
+          segmentHeight * 0.8
+        );
+
+        // Add the reflection to the container
+        this.reflectionContainer.add(reflection);
+        this.reflections.push(reflection);
+
+        // Add puddle reflections if it's raining
+        if (this.config.weather === 'rain' && Math.random() < 0.3) {
+          this.createRoadPuddle(y + segmentHeight / 2, width, segmentHeight, perspective);
+        }
+      }
+
       // Add to array
       this.roadSegments.push(segment);
 
@@ -480,6 +550,132 @@ export class PerspectiveScene extends Phaser.Scene {
       if (this.config.laneCount > 1) {
         this.addLaneMarkings(segment, i, perspective);
       }
+    }
+  }
+
+  /**
+   * Creates a puddle reflection on the road
+   *
+   * @param {number} y - The y position of the puddle
+   * @param {number} roadWidth - The width of the road at this position
+   * @param {number} segmentHeight - The height of the road segment
+   * @param {number} perspective - The perspective factor (0-1)
+   */
+  createRoadPuddle(y, roadWidth, segmentHeight, perspective) {
+    // Randomly position the puddle on the road
+    const puddleWidth = roadWidth * (0.1 + Math.random() * 0.2); // 10-30% of road width
+    const puddleHeight = segmentHeight * (0.5 + Math.random() * 0.5); // 50-100% of segment height
+
+    // Random position within the road width
+    const offsetX = (Math.random() - 0.5) * (roadWidth - puddleWidth);
+    const x = this.gameWidth / 2 + offsetX;
+
+    // Create the puddle shape (ellipse)
+    const puddle = this.add.ellipse(
+      x,
+      y,
+      puddleWidth,
+      puddleHeight,
+      0x87CEEB, // Sky blue color
+      0.3 + Math.random() * 0.2 // Random opacity between 0.3-0.5
+    );
+
+    // Add a highlight to the puddle
+    const highlight = this.add.ellipse(
+      x,
+      y - puddleHeight * 0.2,
+      puddleWidth * 0.7,
+      puddleHeight * 0.3,
+      0xFFFFFF,
+      0.2
+    );
+
+    // Set depth to be just above the road
+    puddle.setDepth(3.5);
+    highlight.setDepth(3.6);
+
+    // Store reference to the highlight
+    puddle.highlight = highlight;
+
+    // Add to the reflection container
+    this.reflectionContainer.add(puddle);
+    this.reflectionContainer.add(highlight);
+    this.reflections.push(puddle);
+  }
+
+  /**
+   * Creates a reflection of an object on the road
+   *
+   * @param {Phaser.GameObjects.GameObject} object - The object to reflect
+   * @param {number} reflectionAlpha - The opacity of the reflection
+   */
+  createObjectReflection(object, reflectionAlpha = 0.3) {
+    // Only create reflections for objects that are on or near the road
+    const horizonY = this.gameHeight * this.config.horizonLine;
+    const roadWidth = this.gameWidth * this.config.roadWidth;
+    const roadLeft = this.gameWidth / 2 - roadWidth / 2;
+    const roadRight = this.gameWidth / 2 + roadWidth / 2;
+
+    // Skip if the object is above the horizon or outside the road width
+    if (object.y < horizonY || object.x < roadLeft || object.x > roadRight) {
+      return;
+    }
+
+    // Calculate the distance from horizon (0-1)
+    const distanceFromHorizon = (object.y - horizonY) / (this.gameHeight - horizonY);
+
+    // Skip if the object is too close to the horizon
+    if (distanceFromHorizon < 0.1) {
+      return;
+    }
+
+    // Calculate reflection position (mirrored vertically below the object)
+    const reflectionY = object.y + object.height * object.scale * 0.5;
+
+    // Create the reflection based on object type
+    let reflection;
+
+    if (object.type === 'Sprite') {
+      // For sprites, create a flipped copy
+      reflection = this.add.sprite(object.x, reflectionY, object.texture.key);
+      reflection.setScale(object.scaleX, -object.scaleY * 0.5); // Flip vertically and make shorter
+      reflection.setAlpha(reflectionAlpha * distanceFromHorizon); // Fade with distance
+      reflection.setTint(object.tintTopLeft || 0xFFFFFF); // Match the object's tint
+    } else if (object.type === 'Rectangle') {
+      // For rectangles, create a similar rectangle
+      reflection = this.add.rectangle(
+        object.x,
+        reflectionY,
+        object.width,
+        object.height * 0.5, // Make the reflection shorter
+        object.fillColor,
+        reflectionAlpha * distanceFromHorizon
+      );
+    } else if (object.type === 'Ellipse') {
+      // For ellipses, create a similar ellipse
+      reflection = this.add.ellipse(
+        object.x,
+        reflectionY,
+        object.width,
+        object.height * 0.5, // Make the reflection shorter
+        object.fillColor,
+        reflectionAlpha * distanceFromHorizon
+      );
+    }
+
+    if (reflection) {
+      // Set depth to be just above the road but below the object
+      reflection.setDepth(object.depth - 0.1);
+
+      // Add to the reflection container
+      this.reflectionContainer.add(reflection);
+      this.reflections.push(reflection);
+
+      // Store reference to the original object
+      reflection.sourceObject = object;
+
+      // Store reference to the reflection in the original object
+      object.reflection = reflection;
     }
   }
 
@@ -1220,6 +1416,52 @@ export class PerspectiveScene extends Phaser.Scene {
       }
     }
 
+    // Update reflections
+    if (this.reflections && this.reflections.length > 0) {
+      // Remove old reflections that have gone off screen
+      for (let i = this.reflections.length - 1; i >= 0; i--) {
+        const reflection = this.reflections[i];
+
+        // Move the reflection with the road
+        if (reflection.y !== undefined) {
+          reflection.y += this.config.roadSpeed;
+
+          // If it's a puddle with a highlight, move the highlight too
+          if (reflection.highlight) {
+            reflection.highlight.y += this.config.roadSpeed;
+          }
+
+          // Remove reflections that go off screen
+          if (reflection.y > this.gameHeight + 100) {
+            if (reflection.highlight) {
+              reflection.highlight.destroy();
+            }
+            reflection.destroy();
+            this.reflections.splice(i, 1);
+          }
+        } else if (reflection.type === 'Graphics') {
+          // For graphics objects, we need to recreate them at the new position
+          // This is a simplified approach - in a real game, you might use a more efficient method
+          reflection.y += this.config.roadSpeed;
+          if (reflection.y > this.gameHeight + 100) {
+            reflection.destroy();
+            this.reflections.splice(i, 1);
+          }
+        }
+      }
+
+      // Occasionally add new puddles if it's raining
+      if (this.config.weather === 'rain' && Phaser.Math.Between(1, 60) === 1) {
+        const horizonY = this.gameHeight * this.config.horizonLine;
+        const segmentHeight = (this.gameHeight - horizonY) / this.config.segmentCount;
+        const y = horizonY + segmentHeight; // Just below horizon
+        const perspective = 0.1; // Near horizon
+        const width = this.gameWidth * this.config.roadWidth * (1 - perspective * 0.7);
+
+        this.createRoadPuddle(y, width, segmentHeight, perspective);
+      }
+    }
+
     // Update side elements
     for (let i = 0; i < this.sideElements.length; i++) {
       const element = this.sideElements[i];
@@ -1303,6 +1545,36 @@ export class PerspectiveScene extends Phaser.Scene {
           // Very faint, diffuse shadow at night
           obstacle.shadow.scaleY = obstacle.shadow.scaleX * 0.4;
           obstacle.shadow.setAlpha(0.1 + distanceFromHorizon * 0.1);
+        }
+      }
+
+      // Add or update reflection on the road
+      // Only add reflection when the obstacle is a certain distance from the horizon
+      if (distanceFromHorizon > 0.2) {
+        if (!obstacle.hasReflection) {
+          // Create a reflection for this obstacle
+          this.createObjectReflection(obstacle, 0.3);
+          obstacle.hasReflection = true;
+        } else if (obstacle.reflection) {
+          // Update existing reflection
+          obstacle.reflection.x = obstacle.x;
+          obstacle.reflection.y = obstacle.y + obstacle.height * obstacle.scale * 0.5;
+
+          // Adjust reflection opacity based on weather
+          let reflectionAlpha = 0.3 * distanceFromHorizon;
+
+          if (this.config.weather === 'rain') {
+            reflectionAlpha *= 1.5; // Stronger reflections when wet
+          } else if (this.config.weather === 'fog') {
+            reflectionAlpha *= 0.7; // Weaker reflections in fog
+          }
+
+          obstacle.reflection.setAlpha(reflectionAlpha);
+
+          // Scale the reflection with the obstacle
+          if (obstacle.reflection.scaleX) {
+            obstacle.reflection.setScale(obstacle.scaleX, -obstacle.scaleY * 0.5);
+          }
         }
       }
 
@@ -2199,6 +2471,10 @@ export class PerspectiveScene extends Phaser.Scene {
     // Initialize hitbox (will be updated in the update loop)
     obstacle.updateHitboxByDistance(0); // Start with very small hitbox at horizon
 
+    // Create a reflection of the obstacle on the road
+    // We'll skip creating the reflection at the horizon and add it when it moves down
+    obstacle.hasReflection = false; // Flag to track if reflection has been created
+
     // Return the created obstacle
     return obstacle;
   }
@@ -2283,6 +2559,17 @@ export class PerspectiveScene extends Phaser.Scene {
     // Destroy the shadow if it exists
     if (obstacle.shadow) {
       obstacle.shadow.destroy();
+    }
+
+    // Destroy the reflection if it exists
+    if (obstacle.reflection) {
+      // Remove from reflections array
+      const reflectionIndex = this.reflections.indexOf(obstacle.reflection);
+      if (reflectionIndex > -1) {
+        this.reflections.splice(reflectionIndex, 1);
+      }
+
+      obstacle.reflection.destroy();
     }
 
     // Destroy the obstacle sprite
