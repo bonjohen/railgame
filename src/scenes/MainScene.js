@@ -39,7 +39,14 @@ export class MainScene extends Phaser.Scene {
       showFPS: true,          // Whether to show the FPS counter
       maxDepthElements: 10,   // Maximum number of depth elements to create
       cullingThreshold: 100,  // Distance in pixels beyond which objects are culled
-      controlAreaHeight: 0.25 // Height of the control area as a percentage of the game height
+      controlAreaHeight: 0.25, // Height of the control area as a percentage of the game height
+      touchSensitivity: 1.0,  // Touch sensitivity adjustment factor
+      uiScale: 1.0,           // UI scaling factor for high-resolution screens
+      topBarHeight: 60,       // Height of the top bar in pixels
+      health: 100,            // Initial health value
+      maxHealth: 100,         // Maximum health value
+      score: 0,               // Initial score value
+      progress: 0             // Initial progress value (0-100)
     };
 
     // Game state
@@ -54,7 +61,9 @@ export class MainScene extends Phaser.Scene {
       isDragging: false,      // Whether the player is currently dragging
       dragX: 0,               // X position of the drag
       dragStartX: 0,          // Starting X position of the drag
-      clickHoldX: 0           // X position of click-hold gesture
+      clickHoldX: 0,          // X position of click-hold gesture
+      isHighResolution: false, // Whether the device has a high-resolution screen
+      deviceModel: 'unknown'  // The detected device model
     };
 
     // Performance monitoring
@@ -75,6 +84,13 @@ export class MainScene extends Phaser.Scene {
     this.gameWidth = this.cameras.main.width;
     this.gameHeight = this.cameras.main.height;
 
+    // Check for high-resolution device
+    if (this.game.deviceDetector) {
+      this.state.isHighResolution = this.game.deviceDetector.isHighResolutionDevice();
+      this.state.deviceModel = this.game.deviceDetector.detectDeviceModel();
+      console.log(`Device detected: ${this.state.deviceModel}, High-res: ${this.state.isHighResolution}`);
+    }
+
     // Initialize performance monitor
     this.performanceMonitor = new PerformanceMonitor(this, {
       showFPS: this.config.showFPS,
@@ -93,10 +109,13 @@ export class MainScene extends Phaser.Scene {
     // Create depth elements for forward motion illusion
     this.createDepthElements();
 
+    // Create the top bar UI
+    this.createTopBar();
+
     // Set up input handlers
     this.setupInputHandlers();
 
-    // Add menu button (vertical ellipsis) in the upper-right corner
+    // Add menu button (vertical ellipsis) in the top bar
     this.createMenuButton();
 
     // Add keyboard shortcut for toggling FPS display (F key)
@@ -122,12 +141,16 @@ export class MainScene extends Phaser.Scene {
    * Creates the road background as a tile sprite
    */
   createRoadBackground() {
+    // Calculate the available game area (excluding top bar)
+    const gameAreaHeight = this.gameHeight - this.config.topBarHeight;
+    const gameAreaY = this.config.topBarHeight + (gameAreaHeight / 2);
+
     // Create a tile sprite using the road texture
     this.road = this.add.tileSprite(
       this.gameWidth / 2,           // x position (center)
-      this.gameHeight / 2,          // y position (center)
+      gameAreaY,                    // y position (center of game area)
       this.gameWidth,               // width
-      this.gameHeight * 1.2,        // height (slightly taller than the screen)
+      gameAreaHeight * 1.2,         // height (slightly taller than the game area)
       AssetManager.keys.road        // texture key
     );
 
@@ -138,21 +161,33 @@ export class MainScene extends Phaser.Scene {
     const roadWidthPixels = this.gameWidth * this.config.roadWidth;
     this.leftBoundary = (this.gameWidth - roadWidthPixels) / 2 + 30; // Add padding
     this.rightBoundary = this.gameWidth - this.leftBoundary - 30;    // Add padding
+
+    // Store the game area dimensions for reference
+    this.gameAreaHeight = gameAreaHeight;
+    this.gameAreaY = gameAreaY;
   }
 
   /**
    * Creates the character sprite
    */
   createCharacter() {
+    // Calculate the character's vertical position (accounting for top bar)
+    const characterY = this.config.topBarHeight + (this.gameAreaHeight * 0.8);
+
     // Create the character sprite
     this.character = this.add.sprite(
       this.gameWidth / 2,                 // x position (center)
-      this.gameHeight * 0.8,              // y position (near bottom)
+      characterY,                         // y position (near bottom of game area)
       AssetManager.keys.character         // texture key
     );
 
     // Set the origin to the center
     this.character.setOrigin(0.5);
+
+    // Apply scaling for high-resolution screens if needed
+    if (this.state.isHighResolution) {
+      this.character.setScale(this.config.uiScale);
+    }
   }
 
   /**
@@ -227,8 +262,8 @@ export class MainScene extends Phaser.Scene {
    * Supports click-hold and drag gestures
    */
   setupInputHandlers() {
-    // Calculate the control area dimensions (bottom quarter of the screen)
-    const controlAreaHeight = this.gameHeight * this.config.controlAreaHeight;
+    // Calculate the control area dimensions (bottom quarter of the game area, not including top bar)
+    const controlAreaHeight = this.gameAreaHeight * this.config.controlAreaHeight;
     const controlAreaY = this.gameHeight - (controlAreaHeight / 2);
 
     // Create a debug rectangle to visualize the control area (can be removed in production)
@@ -246,7 +281,7 @@ export class MainScene extends Phaser.Scene {
       this.gameWidth / 2,          // x position (center)
       controlAreaY,                // y position (bottom quarter)
       this.gameWidth,              // width (full screen width)
-      controlAreaHeight            // height (quarter of the screen height)
+      controlAreaHeight            // height (quarter of the game area height)
     ).setOrigin(0.5).setInteractive();
 
     // Handle pointer down (click/touch start)
@@ -323,15 +358,208 @@ export class MainScene extends Phaser.Scene {
   }
 
   /**
-   * Creates the menu button
+   * Creates the top bar UI with health, score, and progress indicators
+   */
+  createTopBar() {
+    // Create top bar container
+    this.topBar = this.add.container(0, 0);
+
+    // Apply UI scaling for high-resolution screens
+    const uiScale = this.state.isHighResolution ? this.config.uiScale : 1.0;
+
+    // Create top bar background
+    const topBarBg = this.add.rectangle(
+      this.gameWidth / 2,
+      this.config.topBarHeight / 2,
+      this.gameWidth,
+      this.config.topBarHeight,
+      0x222222,
+      0.8
+    );
+
+    // Add a bottom border to the top bar
+    const topBarBorder = this.add.rectangle(
+      this.gameWidth / 2,
+      this.config.topBarHeight,
+      this.gameWidth,
+      2,
+      0xffffff,
+      0.5
+    );
+
+    // Create health indicator
+    this.healthText = this.add.text(
+      20,
+      this.config.topBarHeight / 2,
+      `Health: ${this.config.health}`,
+      {
+        font: `${Math.round(18 * uiScale)}px Arial`,
+        fill: '#ffffff'
+      }
+    ).setOrigin(0, 0.5);
+
+    // Create health bar background
+    this.healthBarBg = this.add.rectangle(
+      120 * uiScale,
+      this.config.topBarHeight / 2,
+      100 * uiScale,
+      16 * uiScale,
+      0x666666
+    ).setOrigin(0, 0.5);
+
+    // Create health bar fill
+    this.healthBarFill = this.add.rectangle(
+      120 * uiScale,
+      this.config.topBarHeight / 2,
+      100 * uiScale,
+      16 * uiScale,
+      0xff0000
+    ).setOrigin(0, 0.5);
+
+    // Update health bar to match initial health
+    this.updateHealthBar(this.config.health);
+
+    // Create score indicator
+    this.scoreText = this.add.text(
+      this.gameWidth / 2,
+      this.config.topBarHeight / 2,
+      `Score: ${this.config.score}`,
+      {
+        font: `${Math.round(20 * uiScale)}px Arial`,
+        fill: '#ffffff'
+      }
+    ).setOrigin(0.5);
+
+    // Create progress indicator
+    this.progressText = this.add.text(
+      this.gameWidth - 20 - 100 * uiScale,
+      this.config.topBarHeight / 2 - 15 * uiScale,
+      `Progress:`,
+      {
+        font: `${Math.round(14 * uiScale)}px Arial`,
+        fill: '#ffffff'
+      }
+    ).setOrigin(1, 0.5);
+
+    // Create progress bar background
+    this.progressBarBg = this.add.rectangle(
+      this.gameWidth - 20,
+      this.config.topBarHeight / 2 + 5 * uiScale,
+      100 * uiScale,
+      10 * uiScale,
+      0x666666
+    ).setOrigin(1, 0.5);
+
+    // Create progress bar fill
+    this.progressBarFill = this.add.rectangle(
+      this.gameWidth - 20,
+      this.config.topBarHeight / 2 + 5 * uiScale,
+      0,
+      10 * uiScale,
+      0x00ff00
+    ).setOrigin(1, 0.5);
+
+    // Update progress bar to match initial progress
+    this.updateProgressBar(this.config.progress);
+
+    // Add all elements to the top bar container
+    this.topBar.add([
+      topBarBg,
+      topBarBorder,
+      this.healthText,
+      this.healthBarBg,
+      this.healthBarFill,
+      this.scoreText,
+      this.progressText,
+      this.progressBarBg,
+      this.progressBarFill
+    ]);
+
+    // Set the top bar to stay fixed to the camera
+    this.topBar.setScrollFactor(0);
+  }
+
+  /**
+   * Updates the health bar to reflect the current health value
+   *
+   * @param {number} health - The current health value
+   */
+  updateHealthBar(health) {
+    // Ensure health is within valid range
+    const clampedHealth = Phaser.Math.Clamp(health, 0, this.config.maxHealth);
+
+    // Calculate the width of the health bar fill
+    const fillWidth = (clampedHealth / this.config.maxHealth) * 100 *
+                     (this.state.isHighResolution ? this.config.uiScale : 1.0);
+
+    // Update the health bar fill width
+    this.healthBarFill.width = fillWidth;
+
+    // Update the health text
+    this.healthText.setText(`Health: ${Math.round(clampedHealth)}`);
+
+    // Change color based on health level
+    if (clampedHealth < 25) {
+      this.healthBarFill.fillColor = 0xff0000; // Red for low health
+    } else if (clampedHealth < 50) {
+      this.healthBarFill.fillColor = 0xff7700; // Orange for medium health
+    } else {
+      this.healthBarFill.fillColor = 0x00ff00; // Green for good health
+    }
+  }
+
+  /**
+   * Updates the score display
+   *
+   * @param {number} score - The current score value
+   */
+  updateScore(score) {
+    // Update the score text
+    this.scoreText.setText(`Score: ${score}`);
+
+    // Animate the score text for visual feedback
+    this.tweens.add({
+      targets: this.scoreText,
+      scale: 1.2,
+      duration: 100,
+      yoyo: true,
+      ease: 'Power2'
+    });
+  }
+
+  /**
+   * Updates the progress bar to reflect the current progress value
+   *
+   * @param {number} progress - The current progress value (0-100)
+   */
+  updateProgressBar(progress) {
+    // Ensure progress is within valid range
+    const clampedProgress = Phaser.Math.Clamp(progress, 0, 100);
+
+    // Calculate the width of the progress bar fill
+    const fillWidth = (clampedProgress / 100) * 100 *
+                     (this.state.isHighResolution ? this.config.uiScale : 1.0);
+
+    // Update the progress bar fill width
+    this.progressBarFill.width = fillWidth;
+  }
+
+  /**
+   * Creates the menu button (vertical ellipsis)
    */
   createMenuButton() {
-    // Add menu button in the upper-right corner
+    // Apply UI scaling for high-resolution screens
+    const uiScale = this.state.isHighResolution ? this.config.uiScale : 1.0;
+
+    // Add menu button in the top bar (vertical ellipsis)
     this.menuButton = this.add.image(
       this.gameWidth - 30,           // x position (near right edge)
-      30,                            // y position (near top)
+      this.config.topBarHeight / 2,  // y position (centered in top bar)
       AssetManager.keys.menuButton   // texture key
     );
+
+    // Scale the button for high-resolution screens
+    this.menuButton.setScale(uiScale);
 
     // Make the menu button interactive
     this.menuButton.setInteractive({ useHandCursor: true });
@@ -340,7 +568,7 @@ export class MainScene extends Phaser.Scene {
     this.menuButton.on('pointerover', () => {
       this.tweens.add({
         targets: this.menuButton,
-        scale: this.config.buttonScale,
+        scale: uiScale * this.config.buttonScale,
         duration: this.config.buttonScaleSpeed,
         ease: 'Power2'
       });
@@ -349,7 +577,7 @@ export class MainScene extends Phaser.Scene {
     this.menuButton.on('pointerout', () => {
       this.tweens.add({
         targets: this.menuButton,
-        scale: 1,
+        scale: uiScale,
         duration: this.config.buttonScaleSpeed,
         ease: 'Power2'
       });
@@ -362,6 +590,9 @@ export class MainScene extends Phaser.Scene {
         this.openMenu();
       }
     });
+
+    // Add the menu button to the top bar
+    this.topBar.add(this.menuButton);
   }
 
   /**

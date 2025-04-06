@@ -26,6 +26,9 @@ const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/
 const gameWidth = isMobile ? window.innerWidth : 800;
 const gameHeight = isMobile ? window.innerHeight : 600;
 
+// Get device pixel ratio for high-DPI screens
+const pixelRatio = window.devicePixelRatio || 1;
+
 // Create game configuration
 const config = {
   // Renderer type: AUTO will use WebGL if available, otherwise Canvas
@@ -50,9 +53,11 @@ const config = {
       height: 480
     },
     max: {
-      width: 1920,
-      height: 1080
-    }
+      width: 3088,  // Support for Samsung S23 Ultra max resolution
+      height: 3088  // Support for Samsung S23 Ultra max resolution
+    },
+    // Zoom factor for high-DPI screens
+    zoom: 1 / Math.min(pixelRatio, 2)  // Limit zoom to avoid extreme scaling
   },
   // Physics engine configuration
   physics: {
@@ -102,8 +107,57 @@ window.addEventListener('load', () => {
         game.scale.refresh();
       }, 200);
     });
+
+    // Apply device-specific optimizations
+    applyDeviceSpecificOptimizations(game);
   }
 
   // Add the game to the window for debugging
   window.game = game;
 });
+
+/**
+ * Apply device-specific optimizations based on detected device
+ *
+ * @param {Phaser.Game} game - The Phaser game instance
+ */
+function applyDeviceSpecificOptimizations(game) {
+  // Wait for device detector to be initialized
+  setTimeout(() => {
+    const deviceDetector = game.deviceDetector;
+    if (!deviceDetector) return;
+
+    const deviceInfo = deviceDetector.getDeviceInfo();
+    console.log('Applying optimizations for:', deviceInfo.deviceModel);
+
+    // Samsung S23 Ultra specific optimizations
+    if (deviceDetector.isSamsungS23Ultra()) {
+      // Adjust game resolution if needed
+      if (game.scale.isFullscreen) {
+        game.scale.setGameSize(
+          deviceDetector.deviceConfigs.samsungS23Ultra.width,
+          deviceDetector.deviceConfigs.samsungS23Ultra.height
+        );
+      }
+
+      // Apply touch sensitivity adjustments in the main scene
+      const mainScene = game.scene.getScene('MainScene');
+      if (mainScene && mainScene.config) {
+        // Adjust touch sensitivity
+        mainScene.config.touchSensitivity = deviceDetector.getTouchSensitivityAdjustment();
+      }
+    }
+
+    // High-resolution device optimizations
+    if (deviceDetector.isHighResolutionDevice()) {
+      // Adjust rendering quality for high-res screens
+      game.renderer.setTextureCrisp(true);
+
+      // Adjust UI scaling if needed
+      const mainScene = game.scene.getScene('MainScene');
+      if (mainScene && mainScene.config) {
+        mainScene.config.uiScale = Math.min(deviceInfo.pixelRatio / 2, 1.5);
+      }
+    }
+  }, 500); // Wait for scenes to initialize
+}

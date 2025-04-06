@@ -10,15 +10,15 @@ To enhance the 'railgame' project, we'll expand upon the initial requirements by
 2. **Restrict Control Area:** [✓]
    - Define the bottom quarter of the screen as the interactive zone for character movement, ignoring inputs outside this area. [✓]
 
-**Phase 2: User Interface Enhancements**
+**Phase 2: User Interface Enhancements** [✓]
 
-1. **Adjust Game Display for Samsung S23 Ultra:**
-   - Optimize the game's resolution and aspect ratio to fit the Samsung S23 Ultra's screen dimensions, ensuring a full-screen experience without distortion.
-   - Test and adjust touch sensitivity and responsiveness to align with the device's capabilities.
+1. **Adjust Game Display for Samsung S23 Ultra:** [✓]
+   - Optimize the game's resolution and aspect ratio to fit the Samsung S23 Ultra's screen dimensions, ensuring a full-screen experience without distortion. [✓]
+   - Test and adjust touch sensitivity and responsiveness to align with the device's capabilities. [✓]
 
-2. **Design and Implement a Top Bar:**
-   - Create a top bar displaying health, score, and progress to completion, ensuring it remains unobtrusive yet accessible.
-   - Integrate a vertical ellipsis (three-dot menu) within the top bar for additional options or settings.
+2. **Design and Implement a Top Bar:** [✓]
+   - Create a top bar displaying health, score, and progress to completion, ensuring it remains unobtrusive yet accessible. [✓]
+   - Integrate a vertical ellipsis (three-dot menu) within the top bar for additional options or settings. [✓]
 
 **Phase 3: Game Mechanics and Feedback**
 
