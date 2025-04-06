@@ -25,8 +25,8 @@
 
 ## Commit and Sync
 
-- [ ] Commit the changes to the repository
-- [ ] Push the changes to GitHub
+- [✓] Commit the changes to the repository
+- [✓] Push the changes to GitHub
 
 ## Next Steps
 
