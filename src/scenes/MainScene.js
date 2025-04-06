@@ -339,6 +339,9 @@ export class MainScene extends Phaser.Scene {
     // Set up space bar for firing
     this.spaceBar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
+    // Set up ESC key for menu
+    this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+
     // Handle pointer down (click/touch start)
     this.controlArea.on('pointerdown', (pointer) => {
       // Store the initial position for drag detection
@@ -1255,6 +1258,17 @@ export class MainScene extends Phaser.Scene {
     // Handle space bar for firing
     if (Phaser.Input.Keyboard.JustDown(this.spaceBar)) {
       this.fireProjectile();
+    }
+
+    // Handle ESC key for menu
+    if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
+      if (!this.state.menuOpen && !this.state.confirmDialogOpen) {
+        this.openMenu();
+      } else if (this.state.menuOpen && !this.state.confirmDialogOpen) {
+        this.closeMenu();
+      } else if (this.state.confirmDialogOpen) {
+        this.closeExitConfirmation();
+      }
     }
 
     // Update character position based on input
