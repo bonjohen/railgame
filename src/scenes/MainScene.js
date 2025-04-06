@@ -46,7 +46,10 @@ export class MainScene extends Phaser.Scene {
       health: 100,            // Initial health value
       maxHealth: 100,         // Maximum health value
       score: 0,               // Initial score value
-      progress: 0             // Initial progress value (0-100)
+      progress: 0,            // Initial progress value (0-100)
+      yellowLineSpeed: 3,     // Speed of the yellow line scrolling (different from road speed)
+      obstacleSpeed: 4,       // Speed of obstacles moving down the road
+      collisionDamage: 10     // Amount of health lost on collision with an obstacle
     };
 
     // Game state
@@ -63,8 +66,15 @@ export class MainScene extends Phaser.Scene {
       dragStartX: 0,          // Starting X position of the drag
       clickHoldX: 0,          // X position of click-hold gesture
       isHighResolution: false, // Whether the device has a high-resolution screen
-      deviceModel: 'unknown'  // The detected device model
+      deviceModel: 'unknown', // The detected device model
+      obstacleSpawnTimer: 0,  // Timer for spawning obstacles
+      obstacleSpawnInterval: 2000, // Time between obstacle spawns in ms
+      isInvulnerable: false,  // Whether the character is currently invulnerable after a collision
+      invulnerabilityTimer: 0 // Timer for invulnerability period
     };
+
+    // Game objects
+    this.obstacles = []; // Array to store active obstacles
 
     // Performance monitoring
     this.performanceMonitor = null;
@@ -118,6 +128,12 @@ export class MainScene extends Phaser.Scene {
     // Add menu button (vertical ellipsis) in the top bar
     this.createMenuButton();
 
+    // Initialize physics for collision detection
+    this.initializePhysics();
+
+    // Create obstacle group
+    this.createObstacleGroup();
+
     // Add keyboard shortcut for toggling FPS display (F key)
     this.input.keyboard.on('keydown-F', () => {
       this.performanceMonitor.toggleFPSDisplay();
@@ -157,6 +173,22 @@ export class MainScene extends Phaser.Scene {
     // Set the origin to the center
     this.road.setOrigin(0.5);
 
+    // Create the yellow line as a separate tile sprite
+    this.yellowLine = this.add.tileSprite(
+      this.gameWidth / 2,           // x position (center)
+      gameAreaY,                    // y position (center of game area)
+      this.gameWidth,               // width
+      gameAreaHeight * 1.2,         // height (same as road)
+      AssetManager.keys.yellowLine  // texture key
+    );
+
+    // Set the origin to the center
+    this.yellowLine.setOrigin(0.5);
+
+    // Set the yellow line depth to be above the road but below other elements
+    this.yellowLine.setDepth(1);
+    this.road.setDepth(0);
+
     // Calculate road boundaries for character movement
     const roadWidthPixels = this.gameWidth * this.config.roadWidth;
     this.leftBoundary = (this.gameWidth - roadWidthPixels) / 2 + 30; // Add padding
@@ -175,7 +207,7 @@ export class MainScene extends Phaser.Scene {
     const characterY = this.config.topBarHeight + (this.gameAreaHeight * 0.8);
 
     // Create the character sprite
-    this.character = this.add.sprite(
+    this.character = this.physics.add.sprite(
       this.gameWidth / 2,                 // x position (center)
       characterY,                         // y position (near bottom of game area)
       AssetManager.keys.character         // texture key
@@ -188,6 +220,13 @@ export class MainScene extends Phaser.Scene {
     if (this.state.isHighResolution) {
       this.character.setScale(this.config.uiScale);
     }
+
+    // Set the character's depth to be above the road and yellow line
+    this.character.setDepth(10);
+
+    // Set up a smaller physics body for more accurate collisions
+    this.character.body.setSize(this.character.width * 0.7, this.character.height * 0.7);
+    this.character.body.setOffset(this.character.width * 0.15, this.character.height * 0.15);
   }
 
   /**
@@ -808,10 +847,146 @@ export class MainScene extends Phaser.Scene {
   }
 
   /**
+   * Initialize physics for collision detection
+   */
+  initializePhysics() {
+    // Enable physics on the character
+    this.physics.world.enable(this.character);
+  }
+
+  /**
+   * Create obstacle group for collision detection
+   */
+  createObstacleGroup() {
+    // Create a physics group for obstacles
+    this.obstacleGroup = this.physics.add.group();
+
+    // Set up collision between character and obstacles
+    this.physics.add.overlap(
+      this.character,
+      this.obstacleGroup,
+      this.handleCollision,
+      null,
+      this
+    );
+  }
+
+  /**
+   * Create a new obstacle
+   */
+  createObstacle() {
+    // Randomly position the obstacle on the road
+    const x = Phaser.Math.Between(this.leftBoundary + 30, this.rightBoundary - 30);
+    const y = this.config.topBarHeight - 50; // Start above the visible area
+
+    // Create the obstacle sprite
+    const obstacle = this.physics.add.sprite(x, y, 'characterTexture');
+
+    // Set the obstacle's tint to make it visually distinct
+    obstacle.setTint(0xff0000); // Red tint
+
+    // Scale the obstacle
+    obstacle.setScale(0.8);
+
+    // Set the obstacle's depth to be above the road but below the character
+    obstacle.setDepth(5);
+
+    // Add the obstacle to the physics group
+    this.obstacleGroup.add(obstacle);
+
+    // Store the obstacle in our array for easy access
+    this.obstacles.push(obstacle);
+
+    // Return the created obstacle
+    return obstacle;
+  }
+
+  /**
+   * Handle collision between character and obstacle
+   *
+   * @param {Phaser.GameObjects.Sprite} character - The character sprite
+   * @param {Phaser.GameObjects.Sprite} obstacle - The obstacle sprite
+   */
+  handleCollision(character, obstacle) {
+    // Skip if the character is invulnerable
+    if (this.state.isInvulnerable) return;
+
+    // Make the character invulnerable for a short time
+    this.state.isInvulnerable = true;
+    this.state.invulnerabilityTimer = 0;
+
+    // Flash the character to indicate invulnerability
+    this.tweens.add({
+      targets: character,
+      alpha: 0.5,
+      duration: 100,
+      yoyo: true,
+      repeat: 5
+    });
+
+    // Reduce health
+    const newHealth = this.config.health - this.config.collisionDamage;
+    this.config.health = Math.max(0, newHealth);
+
+    // Update the health bar
+    this.updateHealthBar(this.config.health);
+
+    // Create a collision animation
+    this.createCollisionAnimation(obstacle.x, obstacle.y);
+
+    // Remove the obstacle
+    this.removeObstacle(obstacle);
+
+    // Check if the character is dead
+    if (this.config.health <= 0) {
+      // Game over logic would go here
+      console.log('Game Over!');
+    }
+  }
+
+  /**
+   * Create a collision animation at the specified position
+   *
+   * @param {number} x - The x position of the collision
+   * @param {number} y - The y position of the collision
+   */
+  createCollisionAnimation(x, y) {
+    // Create a particle emitter for the collision effect
+    const particles = this.add.particles(x, y, 'characterTexture', {
+      speed: 100,
+      scale: { start: 0.5, end: 0 },
+      blendMode: 'ADD',
+      lifespan: 500,
+      quantity: 10
+    });
+
+    // Stop the emitter after a short time
+    this.time.delayedCall(500, () => {
+      particles.destroy();
+    });
+  }
+
+  /**
+   * Remove an obstacle from the game
+   *
+   * @param {Phaser.GameObjects.Sprite} obstacle - The obstacle to remove
+   */
+  removeObstacle(obstacle) {
+    // Remove from our array
+    const index = this.obstacles.indexOf(obstacle);
+    if (index > -1) {
+      this.obstacles.splice(index, 1);
+    }
+
+    // Destroy the obstacle sprite
+    obstacle.destroy();
+  }
+
+  /**
    * Update method - automatically called by Phaser on each frame
    * Handles game logic that needs to run continuously
    */
-  update() {
+  update(time, delta) {
     // Skip updates if the game is paused
     if (this.state.isPaused) return;
 
@@ -820,6 +995,46 @@ export class MainScene extends Phaser.Scene {
 
     // Update road scrolling
     this.road.tilePositionY += this.config.roadSpeed;
+
+    // Update yellow line scrolling at a different speed
+    this.yellowLine.tilePositionY += this.config.yellowLineSpeed;
+
+    // Update obstacle spawn timer
+    this.state.obstacleSpawnTimer += delta;
+    if (this.state.obstacleSpawnTimer >= this.state.obstacleSpawnInterval) {
+      this.state.obstacleSpawnTimer = 0;
+      this.createObstacle();
+    }
+
+    // Update obstacles
+    for (let i = this.obstacles.length - 1; i >= 0; i--) {
+      const obstacle = this.obstacles[i];
+
+      // Move the obstacle down
+      obstacle.y += this.config.obstacleSpeed;
+
+      // Remove obstacles that go off screen
+      if (obstacle.y > this.gameHeight + 50) {
+        this.removeObstacle(obstacle);
+
+        // Increase score when successfully avoiding an obstacle
+        this.config.score += 10;
+        this.updateScore(this.config.score);
+
+        // Update progress
+        this.config.progress = Math.min(100, this.config.progress + 1);
+        this.updateProgressBar(this.config.progress);
+      }
+    }
+
+    // Update invulnerability timer
+    if (this.state.isInvulnerable) {
+      this.state.invulnerabilityTimer += delta;
+      if (this.state.invulnerabilityTimer >= 1500) { // 1.5 seconds of invulnerability
+        this.state.isInvulnerable = false;
+        this.character.alpha = 1; // Ensure character is fully visible
+      }
+    }
 
     // Update character position based on input
     // Prioritize drag gestures over click-hold

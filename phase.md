@@ -20,16 +20,16 @@ To enhance the 'railgame' project, we'll expand upon the initial requirements by
    - Create a top bar displaying health, score, and progress to completion, ensuring it remains unobtrusive yet accessible. [✓]
    - Integrate a vertical ellipsis (three-dot menu) within the top bar for additional options or settings. [✓]
 
-**Phase 3: Game Mechanics and Feedback**
+**Phase 3: Game Mechanics and Feedback** [✓]
 
-1. **Correct Yellow Line Movement:**
-   - Analyze the current behavior of the yellow line to identify the cause of its incorrect movement.
-   - Implement the necessary adjustments to ensure the yellow line moves as intended, enhancing gameplay consistency.
+1. **Correct Yellow Line Movement:** [✓]
+   - Analyze the current behavior of the yellow line to identify the cause of its incorrect movement. [✓]
+   - Implement the necessary adjustments to ensure the yellow line moves as intended, enhancing gameplay consistency. [✓]
 
-2. **Implement Collision Detection and Response:**
-   - Develop a system to detect collisions between the character and in-game objects.
-   - Upon collision, trigger an appropriate animation to provide visual feedback.
-   - Remove or deactivate the colliding object from the game environment.
-   - Reduce the character's health accordingly and update the health display on the top bar.
+2. **Implement Collision Detection and Response:** [✓]
+   - Develop a system to detect collisions between the character and in-game objects. [✓]
+   - Upon collision, trigger an appropriate animation to provide visual feedback. [✓]
+   - Remove or deactivate the colliding object from the game environment. [✓]
+   - Reduce the character's health accordingly and update the health display on the top bar. [✓]
 
 By organizing the development process into these three phases, we can systematically address each aspect of the game, ensuring a smooth and efficient development cycle.
