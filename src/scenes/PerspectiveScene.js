@@ -1197,12 +1197,25 @@ export class PerspectiveScene extends Phaser.Scene {
       obstacle.y += this.config.obstacleSpeed * speedFactor;
 
       // Scale based on distance from horizon
-      obstacle.setScale(0.2 + distanceFromHorizon * 0.8);
+      obstacle.setScale(0.05 + distanceFromHorizon * 0.95); // Start much smaller at horizon
 
       // Update hitbox based on distance
       if (obstacle.updateHitboxByDistance) {
         obstacle.updateHitboxByDistance(distanceFromHorizon);
       }
+
+      // Update x position to maintain proper perspective
+      // As obstacles move away from horizon, they should move toward their lane position
+      const centerX = this.gameWidth / 2;
+      const lanePosition = this.getLanePosition(obstacle.lane);
+
+      // Calculate normalized offset from center (-0.5 to 0.5)
+      const normalizedOffset = (obstacle.lane - (this.config.laneCount - 1) / 2) / this.config.laneCount;
+
+      // At horizon, lanes converge; at bottom, they're at their full positions
+      // Interpolate between horizon position (center) and final lane position
+      const horizonX = centerX + (normalizedOffset * this.gameWidth * this.config.roadWidth * 0.1);
+      obstacle.x = Phaser.Math.Linear(horizonX, lanePosition, distanceFromHorizon);
 
       // Remove obstacles that go off screen
       if (obstacle.y > this.gameHeight + 50) {
@@ -1664,6 +1677,9 @@ export class PerspectiveScene extends Phaser.Scene {
     // Set menu state
     this.state.menuOpen = true;
 
+    // Pause the game
+    this.state.isPaused = true;
+
     // Create menu background
     this.menuBackground = this.add.rectangle(
       this.gameWidth / 2,
@@ -1729,10 +1745,41 @@ export class PerspectiveScene extends Phaser.Scene {
         switch (option) {
           case 'Resume':
             this.closeMenu();
+            this.state.isPaused = false;
             break;
           case 'Restart':
             this.closeMenu();
-            this.scene.restart();
+            // Reset game state
+            this.config.health = 100;
+            this.config.score = 0;
+            this.config.progress = 0;
+
+            // Update UI
+            this.updateHealthBar(this.config.health);
+            this.updateScore(this.config.score);
+            this.updateProgressBar(this.config.progress);
+
+            // Clear existing obstacles and projectiles
+            this.obstacles.forEach(obstacle => obstacle.destroy());
+            this.obstacles = [];
+            this.projectiles.forEach(projectile => {
+              if (projectile.particles) projectile.particles.destroy();
+              if (projectile.glow) projectile.glow.destroy();
+              projectile.destroy();
+            });
+            this.projectiles = [];
+
+            // Reset character position
+            this.state.currentLane = 3; // Middle lane
+            this.state.targetLane = 3;
+            this.state.laneTransitionProgress = 1.0;
+            this.character.x = this.getLanePosition(this.state.currentLane);
+            if (this.characterShadow) {
+              this.characterShadow.x = this.character.x;
+            }
+
+            // Unpause the game
+            this.state.isPaused = false;
             break;
           case 'Exit':
             this.showExitConfirmation();
@@ -1971,9 +2018,23 @@ export class PerspectiveScene extends Phaser.Scene {
     // Randomly select a lane for the obstacle
     const lane = Phaser.Math.Between(0, this.config.laneCount - 1);
 
-    // Calculate the obstacle's position
-    const x = this.getLanePosition(lane);
-    const y = this.gameHeight * this.config.horizonLine; // Start at horizon
+    // Calculate the horizon line position
+    const horizonY = this.gameHeight * this.config.horizonLine;
+
+    // Calculate the lane position at the horizon
+    // We need to adjust the x position to account for perspective
+    // Lanes converge at the horizon point
+    const laneWidth = this.gameWidth * this.config.roadWidth / this.config.laneCount;
+    const centerX = this.gameWidth / 2;
+
+    // Calculate lane offset from center (normalized -0.5 to 0.5)
+    const normalizedOffset = (lane - (this.config.laneCount - 1) / 2) / this.config.laneCount;
+
+    // Apply perspective to the lane position (lanes converge at horizon)
+    // At horizon, all lanes are close to center; at bottom, they're spread out
+    const perspectiveScale = 0.1; // Very small at horizon
+    const x = centerX + (normalizedOffset * this.gameWidth * this.config.roadWidth * perspectiveScale);
+    const y = horizonY; // Start exactly at horizon
 
     // Create the obstacle sprite
     const obstacle = this.physics.add.sprite(x, y, 'characterTexture');
@@ -1981,8 +2042,8 @@ export class PerspectiveScene extends Phaser.Scene {
     // Set the obstacle's tint to make it visually distinct
     obstacle.setTint(0xff0000); // Red tint
 
-    // Scale the obstacle based on distance (small at horizon)
-    obstacle.setScale(0.2);
+    // Scale the obstacle based on distance (very small at horizon)
+    obstacle.setScale(0.05); // Much smaller at horizon for better perspective effect
 
     // Set the obstacle's depth to be above the road but below the character
     obstacle.setDepth(5);
@@ -1996,10 +2057,13 @@ export class PerspectiveScene extends Phaser.Scene {
     // Store the lane for this obstacle
     obstacle.lane = lane;
 
+    // Store the original lane for reference (in case we need it later)
+    obstacle.originalLane = lane;
+
     // Set up a method to update the hitbox based on distance
     obstacle.updateHitboxByDistance = (distance) => {
       // Calculate hitbox size based on distance (smaller when far away)
-      const hitboxScale = 0.2 + distance * 0.8; // 0.2 at horizon, 1.0 at bottom
+      const hitboxScale = 0.05 + distance * 0.95; // 0.05 at horizon, 1.0 at bottom
       const width = obstacle.width * 0.7 * hitboxScale;
       const height = obstacle.height * 0.7 * hitboxScale;
 
@@ -2012,7 +2076,7 @@ export class PerspectiveScene extends Phaser.Scene {
     };
 
     // Initialize hitbox (will be updated in the update loop)
-    obstacle.updateHitboxByDistance(0); // Start with small hitbox at horizon
+    obstacle.updateHitboxByDistance(0); // Start with very small hitbox at horizon
 
     // Return the created obstacle
     return obstacle;
