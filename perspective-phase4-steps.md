@@ -2,10 +2,10 @@
 
 ## Add Rich Environment Details
 
-- [ ] Create varied roadside elements (buildings, terrain features)
-- [ ] Implement weather effects (rain, fog) with perspective
-- [ ] Add time-of-day lighting changes
-- [ ] Create distance fog effect for depth enhancement
+- [✓] Create varied roadside elements (buildings, terrain features)
+- [✓] Implement weather effects (rain, fog) with perspective
+- [✓] Add time-of-day lighting changes
+- [✓] Create distance fog effect for depth enhancement
 
 ## Implement Advanced Visual Effects
 

@@ -188,11 +188,11 @@ function positionInLane(sprite, lane, distance) {
 
 ### Phase 4: Visual Enhancements and Polish
 
-- **Add Rich Environment Details**
-  - Create varied roadside elements (buildings, terrain features)
-  - Implement weather effects (rain, fog) with perspective
-  - Add time-of-day lighting changes
-  - Create distance fog effect for depth enhancement
+- **Add Rich Environment Details** [✓]
+  - Create varied roadside elements (buildings, terrain features) [✓]
+  - Implement weather effects (rain, fog) with perspective [✓]
+  - Add time-of-day lighting changes [✓]
+  - Create distance fog effect for depth enhancement [✓]
 
 - **Implement Advanced Visual Effects**
   - Add shadows that scale with objects

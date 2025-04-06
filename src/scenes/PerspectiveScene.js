@@ -42,7 +42,17 @@ export class PerspectiveScene extends Phaser.Scene {
       fireRate: 500,          // Minimum time between shots in milliseconds
       sparkleSize: 15,        // Size of the sparkle projectile
       obstacleSpawnInterval: 2000, // Time between obstacle spawns in ms
-      obstacleSpeed: 2        // Speed of obstacles moving down the road
+      obstacleSpeed: 2,       // Speed of obstacles moving down the road
+
+      // Weather and environment effects
+      weather: 'clear',       // Current weather: 'clear', 'rain', 'fog'
+      weatherIntensity: 0.5,  // Intensity of weather effects (0-1)
+      timeOfDay: 'day',       // Time of day: 'day', 'dusk', 'night', 'dawn'
+      fogDistance: 0.7,       // Distance at which fog reaches maximum density (0-1)
+      fogColor: 0xCCCCCC,     // Color of the fog
+      rainCount: 100,         // Number of raindrops to create
+      rainSpeed: 10,          // Speed of rainfall
+      enableLighting: true    // Whether to enable lighting effects
     };
 
     // Game state
@@ -119,6 +129,15 @@ export class PerspectiveScene extends Phaser.Scene {
     // Create side elements
     this.createSideElements();
 
+    // Create distance fog effect
+    this.createDistanceFog();
+
+    // Create weather effects
+    this.createWeatherEffects();
+
+    // Apply lighting effects
+    this.applyLightingEffects();
+
     // Create the top bar UI
     this.createTopBar();
 
@@ -147,10 +166,45 @@ export class PerspectiveScene extends Phaser.Scene {
     // Create sky gradient
     const horizonY = this.gameHeight * this.config.horizonLine;
 
-    // Sky background (gradient from light blue to darker blue)
+    // Determine sky colors based on time of day
+    let skyTopColor, skyBottomColor, groundColor;
+
+    switch (this.config.timeOfDay) {
+      case 'dawn':
+        skyTopColor = 0x1E3B8A; // Dark blue
+        skyBottomColor = 0xE67E22; // Orange
+        groundColor = 0x5D4037; // Dark brown
+        break;
+      case 'day':
+        skyTopColor = 0x87CEEB; // Light blue
+        skyBottomColor = 0x4682B4; // Darker blue
+        groundColor = 0x8B4513; // Brown
+        break;
+      case 'dusk':
+        skyTopColor = 0x2C3E50; // Dark blue
+        skyBottomColor = 0xE74C3C; // Red-orange
+        groundColor = 0x5D4037; // Dark brown
+        break;
+      case 'night':
+        skyTopColor = 0x0D0D2D; // Very dark blue
+        skyBottomColor = 0x1A1A40; // Dark blue-purple
+        groundColor = 0x2C2C2C; // Very dark gray
+        break;
+      default:
+        skyTopColor = 0x87CEEB; // Light blue
+        skyBottomColor = 0x4682B4; // Darker blue
+        groundColor = 0x8B4513; // Brown
+    }
+
+    // Sky background with gradient
     this.sky = this.add.graphics();
-    this.sky.fillGradientStyle(0x87CEEB, 0x87CEEB, 0x4682B4, 0x4682B4, 1);
+    this.sky.fillGradientStyle(skyTopColor, skyTopColor, skyBottomColor, skyBottomColor, 1);
     this.sky.fillRect(0, 0, this.gameWidth, horizonY);
+
+    // Add stars if it's night
+    if (this.config.timeOfDay === 'night') {
+      this.createStars();
+    }
 
     // Horizon line
     this.horizonLine = this.add.graphics();
@@ -159,8 +213,235 @@ export class PerspectiveScene extends Phaser.Scene {
 
     // Ground (below horizon, above road)
     this.ground = this.add.graphics();
-    this.ground.fillStyle(0x8B4513, 1); // Brown color for ground
+    this.ground.fillStyle(groundColor, 1);
     this.ground.fillRect(0, horizonY, this.gameWidth, this.gameHeight - horizonY);
+  }
+
+  /**
+   * Creates stars in the night sky
+   */
+  createStars() {
+    const horizonY = this.gameHeight * this.config.horizonLine;
+    const starCount = 100;
+    this.stars = [];
+
+    for (let i = 0; i < starCount; i++) {
+      const x = Math.random() * this.gameWidth;
+      const y = Math.random() * horizonY * 0.9; // Keep stars away from horizon
+      const size = 1 + Math.random() * 2;
+      const brightness = 0.5 + Math.random() * 0.5;
+
+      const star = this.add.circle(x, y, size, 0xFFFFFF, brightness);
+      star.setDepth(1);
+
+      // Add twinkling effect to some stars
+      if (Math.random() < 0.3) {
+        this.tweens.add({
+          targets: star,
+          alpha: 0.3,
+          duration: 1000 + Math.random() * 2000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+      }
+
+      this.stars.push(star);
+    }
+  }
+
+  /**
+   * Creates a distance fog effect for depth enhancement
+   */
+  createDistanceFog() {
+    // Calculate the horizon line position
+    const horizonY = this.gameHeight * this.config.horizonLine;
+
+    // Create a container for the distance fog
+    this.distanceFogContainer = this.add.container(0, 0);
+    this.distanceFogContainer.setDepth(20); // Above road but below most elements
+
+    // Create the distance fog gradient
+    this.distanceFog = this.add.graphics();
+
+    // Determine fog color based on time of day
+    let fogColor;
+    switch (this.config.timeOfDay) {
+      case 'dawn':
+        fogColor = 0xE67E22; // Orange tint
+        break;
+      case 'day':
+        fogColor = 0xFFFFFF; // White
+        break;
+      case 'dusk':
+        fogColor = 0xE74C3C; // Red-orange tint
+        break;
+      case 'night':
+        fogColor = 0x1A1A40; // Dark blue tint
+        break;
+      default:
+        fogColor = 0xFFFFFF; // White
+    }
+
+    // Create a gradient from transparent at the bottom to opaque at the horizon
+    this.distanceFog.fillGradientStyle(
+      fogColor, fogColor, fogColor, fogColor,
+      0.3, // Top alpha (at horizon)
+      0.3, // Top alpha
+      0, // Bottom alpha (transparent at bottom)
+      0  // Bottom alpha
+    );
+
+    // Fill the area from horizon to bottom of screen
+    this.distanceFog.fillRect(0, horizonY, this.gameWidth, this.gameHeight - horizonY);
+
+    // Add to container
+    this.distanceFogContainer.add(this.distanceFog);
+  }
+
+  /**
+   * Creates weather effects (rain, fog)
+   */
+  createWeatherEffects() {
+    // Create container for weather effects
+    this.weatherEffects = this.add.container(0, 0);
+    this.weatherEffects.setDepth(50); // Above most elements but below UI
+
+    // Initialize weather-specific elements as null
+    this.raindrops = null;
+    this.fogLayer = null;
+
+    // Apply the current weather
+    this.setWeather(this.config.weather, this.config.weatherIntensity);
+  }
+
+  /**
+   * Sets the current weather effect
+   *
+   * @param {string} weatherType - The type of weather ('clear', 'rain', 'fog')
+   * @param {number} intensity - The intensity of the effect (0-1)
+   */
+  setWeather(weatherType, intensity) {
+    // Store the current weather settings
+    this.config.weather = weatherType;
+    this.config.weatherIntensity = Phaser.Math.Clamp(intensity, 0, 1);
+
+    // Clear existing weather effects
+    this.clearWeatherEffects();
+
+    // Create the new weather effect
+    switch (weatherType) {
+      case 'rain':
+        this.createRain();
+        break;
+      case 'fog':
+        this.createFog();
+        break;
+      case 'clear':
+      default:
+        // No effects for clear weather
+        break;
+    }
+  }
+
+  /**
+   * Clears all active weather effects
+   */
+  clearWeatherEffects() {
+    // Clear raindrops
+    if (this.raindrops) {
+      this.raindrops.forEach(drop => drop.destroy());
+      this.raindrops = null;
+    }
+
+    // Clear fog
+    if (this.fogLayer) {
+      this.fogLayer.destroy();
+      this.fogLayer = null;
+    }
+  }
+
+  /**
+   * Creates rain effect
+   */
+  createRain() {
+    // Calculate raindrop count based on intensity
+    const dropCount = Math.floor(this.config.rainCount * this.config.weatherIntensity);
+    this.raindrops = [];
+
+    // Create raindrops
+    for (let i = 0; i < dropCount; i++) {
+      // Random position
+      const x = Math.random() * this.gameWidth;
+      const y = Math.random() * this.gameHeight;
+
+      // Create raindrop (line)
+      const length = 10 + Math.random() * 15; // Random length
+      const angle = Math.PI / 4; // 45 degrees
+      const drop = this.add.line(
+        x, y,
+        0, 0,
+        Math.cos(angle) * length, Math.sin(angle) * length,
+        0xAAAAAA, // Light gray
+        0.7 * this.config.weatherIntensity // Alpha based on intensity
+      );
+      drop.setLineWidth(1);
+
+      // Store velocity for animation
+      drop.velocityX = this.config.rainSpeed * 0.5;
+      drop.velocityY = this.config.rainSpeed;
+
+      // Add to container and array
+      this.weatherEffects.add(drop);
+      this.raindrops.push(drop);
+    }
+  }
+
+  /**
+   * Creates fog effect
+   */
+  createFog() {
+    // Create a full-screen rectangle for the fog
+    this.fogLayer = this.add.rectangle(
+      this.gameWidth / 2,
+      this.gameHeight / 2,
+      this.gameWidth,
+      this.gameHeight,
+      this.config.fogColor,
+      this.config.weatherIntensity * 0.7 // Alpha based on intensity
+    );
+
+    // Add to container
+    this.weatherEffects.add(this.fogLayer);
+
+    // Create distance fog effect (gradient mask)
+    const fogMask = this.add.graphics();
+    fogMask.fillGradientStyle(
+      this.config.fogColor, this.config.fogColor,
+      this.config.fogColor, this.config.fogColor,
+      0, // Top alpha
+      0, // Top alpha
+      this.config.weatherIntensity, // Bottom alpha
+      this.config.weatherIntensity // Bottom alpha
+    );
+    fogMask.fillRect(0, 0, this.gameWidth, this.gameHeight);
+
+    // Create a mask for the fog to create distance effect
+    const horizonY = this.gameHeight * this.config.horizonLine;
+    const fogDistanceY = horizonY + (this.gameHeight - horizonY) * this.config.fogDistance;
+
+    const distanceMask = this.add.graphics();
+    distanceMask.fillGradientStyle(
+      0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF,
+      0, // Top alpha (transparent at horizon)
+      0, // Top alpha
+      1, // Bottom alpha (opaque at bottom)
+      1  // Bottom alpha
+    );
+    distanceMask.fillRect(0, horizonY, this.gameWidth, this.gameHeight - horizonY);
+
+    // Apply the mask to the fog layer
+    this.fogLayer.setMask(new Phaser.Display.Masks.GeometryMask(this, distanceMask));
   }
 
   /**
@@ -239,51 +520,331 @@ export class PerspectiveScene extends Phaser.Scene {
   }
 
   /**
-   * Creates side elements (trees, poles, etc.)
+   * Creates side elements (trees, buildings, terrain features, etc.)
    */
   createSideElements() {
     // Calculate the horizon line position
     const horizonY = this.gameHeight * this.config.horizonLine;
 
-    // Create trees on both sides of the road
+    // Create elements on both sides of the road
     this.sideElements = [];
 
-    // Left side trees
-    for (let i = 0; i < 10; i++) {
+    // Number of elements to create on each side
+    const elementCount = 20;
+
+    // Element types
+    const elementTypes = [
+      { type: 'tree', probability: 0.4 },
+      { type: 'pine', probability: 0.2 },
+      { type: 'building', probability: 0.2 },
+      { type: 'rock', probability: 0.1 },
+      { type: 'bush', probability: 0.1 }
+    ];
+
+    // Create elements with varying distances
+    for (let i = 0; i < elementCount; i++) {
       // Calculate distance (0 = closest, 1 = horizon)
-      const distance = i / 10;
+      // Use non-linear distribution to have more elements near the horizon
+      const distance = Math.pow(i / elementCount, 0.8);
 
       // Calculate position with perspective
       const y = horizonY + ((1 - distance) * (this.gameHeight - horizonY));
-      const width = 30 * (1 - distance * 0.8); // Trees get smaller toward horizon
-      const height = 60 * (1 - distance * 0.8);
 
-      // Calculate x position (left side of road)
+      // Calculate base width and height (elements get smaller toward horizon)
+      const baseWidth = 30 * (1 - distance * 0.8);
+      const baseHeight = 60 * (1 - distance * 0.8);
+
+      // Calculate road width at this distance
       const roadWidth = this.gameWidth * this.config.roadWidth * (1 - distance * 0.7);
-      const x = (this.gameWidth - roadWidth) / 2 - width / 2 - 20 * (1 - distance);
 
-      // Create tree (simple rectangle for now)
-      const tree = this.add.rectangle(
-        x,
-        y,
-        width,
-        height,
-        0x228B22 // Forest green
-      );
+      // Calculate base x position (distance from road edge)
+      const baseOffset = 20 * (1 - distance);
 
-      this.sideElements.push(tree);
+      // Create elements on both sides with random variations
+      [-1, 1].forEach(side => {
+        // Randomly determine if we should place an element at this position
+        if (Math.random() < 0.7) { // 70% chance to place an element
+          // Randomly select element type based on probabilities
+          const rand = Math.random();
+          let cumulativeProbability = 0;
+          let selectedType = elementTypes[0].type;
 
-      // Right side tree (mirrored)
-      const rightTree = this.add.rectangle(
-        this.gameWidth - x,
-        y,
-        width,
-        height,
-        0x228B22 // Forest green
-      );
+          for (const element of elementTypes) {
+            cumulativeProbability += element.probability;
+            if (rand < cumulativeProbability) {
+              selectedType = element.type;
+              break;
+            }
+          }
 
-      this.sideElements.push(rightTree);
+          // Add random variation to position
+          const xVariation = (Math.random() - 0.5) * 50 * (1 - distance);
+          const yVariation = (Math.random() - 0.5) * 20 * (1 - distance);
+
+          // Calculate final position
+          let x, width, height, color;
+
+          if (side === -1) { // Left side
+            x = (this.gameWidth - roadWidth) / 2 - baseWidth / 2 - baseOffset + xVariation;
+          } else { // Right side
+            x = (this.gameWidth + roadWidth) / 2 + baseWidth / 2 + baseOffset + xVariation;
+          }
+
+          // Create the element based on its type
+          switch (selectedType) {
+            case 'tree':
+              width = baseWidth * (0.8 + Math.random() * 0.4); // Random size variation
+              height = baseHeight * (0.9 + Math.random() * 0.3);
+              color = 0x228B22; // Forest green
+              this.createTree(x, y + yVariation, width, height, distance);
+              break;
+
+            case 'pine':
+              width = baseWidth * (0.7 + Math.random() * 0.3);
+              height = baseHeight * (1.2 + Math.random() * 0.4);
+              this.createPineTree(x, y + yVariation, width, height, distance);
+              break;
+
+            case 'building':
+              width = baseWidth * (2 + Math.random() * 1);
+              height = baseHeight * (1.5 + Math.random() * 1);
+              this.createBuilding(x, y + yVariation, width, height, distance);
+              break;
+
+            case 'rock':
+              width = baseWidth * (0.6 + Math.random() * 0.4);
+              height = baseHeight * (0.4 + Math.random() * 0.3);
+              this.createRock(x, y + yVariation, width, height, distance);
+              break;
+
+            case 'bush':
+              width = baseWidth * (0.7 + Math.random() * 0.3);
+              height = baseHeight * (0.5 + Math.random() * 0.2);
+              this.createBush(x, y + yVariation, width, height, distance);
+              break;
+          }
+        }
+      });
     }
+  }
+
+  /**
+   * Creates a tree element
+   *
+   * @param {number} x - The x position
+   * @param {number} y - The y position
+   * @param {number} width - The width
+   * @param {number} height - The height
+   * @param {number} distance - The distance from viewer (0-1)
+   */
+  createTree(x, y, width, height, distance) {
+    // Create trunk
+    const trunkWidth = width * 0.2;
+    const trunkHeight = height * 0.4;
+    const trunk = this.add.rectangle(
+      x,
+      y + height/2 - trunkHeight/2,
+      trunkWidth,
+      trunkHeight,
+      0x8B4513 // Brown
+    );
+    trunk.setDepth(5 - distance * 3); // Further objects have lower depth
+
+    // Create foliage (circle)
+    const foliageRadius = width * 0.6;
+    const foliage = this.add.circle(
+      x,
+      y - height * 0.2,
+      foliageRadius,
+      0x228B22 // Forest green
+    );
+    foliage.setDepth(5 - distance * 3);
+
+    // Add elements to the array
+    this.sideElements.push(trunk);
+    this.sideElements.push(foliage);
+  }
+
+  /**
+   * Creates a pine tree element
+   *
+   * @param {number} x - The x position
+   * @param {number} y - The y position
+   * @param {number} width - The width
+   * @param {number} height - The height
+   * @param {number} distance - The distance from viewer (0-1)
+   */
+  createPineTree(x, y, width, height, distance) {
+    // Create trunk
+    const trunkWidth = width * 0.15;
+    const trunkHeight = height * 0.3;
+    const trunk = this.add.rectangle(
+      x,
+      y + height/2 - trunkHeight/2,
+      trunkWidth,
+      trunkHeight,
+      0x8B4513 // Brown
+    );
+    trunk.setDepth(5 - distance * 3);
+
+    // Create pine tree shape (triangle)
+    const triangle = this.add.triangle(
+      x, y - height * 0.15,
+      -width/2, height * 0.4,
+      0, -height * 0.6,
+      width/2, height * 0.4,
+      0x006400 // Dark green
+    );
+    triangle.setDepth(5 - distance * 3);
+
+    // Add elements to the array
+    this.sideElements.push(trunk);
+    this.sideElements.push(triangle);
+  }
+
+  /**
+   * Creates a building element
+   *
+   * @param {number} x - The x position
+   * @param {number} y - The y position
+   * @param {number} width - The width
+   * @param {number} height - The height
+   * @param {number} distance - The distance from viewer (0-1)
+   */
+  createBuilding(x, y, width, height, distance) {
+    // Random building color
+    const colors = [0x808080, 0xA9A9A9, 0x696969, 0x778899];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+
+    // Create building body
+    const building = this.add.rectangle(
+      x,
+      y,
+      width,
+      height,
+      color
+    );
+    building.setDepth(5 - distance * 3);
+
+    // Add windows if the building is close enough to see details
+    if (distance < 0.7) {
+      const windowRows = Math.floor(3 + Math.random() * 3);
+      const windowCols = Math.floor(2 + Math.random() * 3);
+      const windowWidth = width * 0.15;
+      const windowHeight = height * 0.1;
+      const windowColor = 0xFFFF99; // Light yellow
+
+      for (let row = 0; row < windowRows; row++) {
+        for (let col = 0; col < windowCols; col++) {
+          // Only add some windows (random pattern)
+          if (Math.random() < 0.7) {
+            const windowX = x - width/2 + width * 0.2 + col * (width * 0.6 / (windowCols - 1));
+            const windowY = y - height/2 + height * 0.2 + row * (height * 0.6 / (windowRows - 1));
+
+            const window = this.add.rectangle(
+              windowX,
+              windowY,
+              windowWidth,
+              windowHeight,
+              windowColor
+            );
+            window.setDepth(6 - distance * 3);
+            this.sideElements.push(window);
+          }
+        }
+      }
+    }
+
+    // Add a roof
+    const roof = this.add.rectangle(
+      x,
+      y - height/2 - 5,
+      width * 1.1,
+      10,
+      0x8B0000 // Dark red
+    );
+    roof.setDepth(5 - distance * 3);
+
+    // Add elements to the array
+    this.sideElements.push(building);
+    this.sideElements.push(roof);
+  }
+
+  /**
+   * Creates a rock element
+   *
+   * @param {number} x - The x position
+   * @param {number} y - The y position
+   * @param {number} width - The width
+   * @param {number} height - The height
+   * @param {number} distance - The distance from viewer (0-1)
+   */
+  createRock(x, y, width, height, distance) {
+    // Random rock color
+    const colors = [0x808080, 0xA9A9A9, 0x696969, 0x778899];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+
+    // Create rock (polygon with irregular shape)
+    const points = [];
+    const sides = 6 + Math.floor(Math.random() * 3);
+    const angleStep = Math.PI * 2 / sides;
+
+    for (let i = 0; i < sides; i++) {
+      const angle = i * angleStep;
+      const radius = (0.7 + Math.random() * 0.3) * width / 2;
+      points.push({
+        x: x + Math.cos(angle) * radius,
+        y: y + Math.sin(angle) * radius * (height / width)
+      });
+    }
+
+    // Create the rock polygon
+    const rock = this.add.polygon(
+      0, 0, // These will be ignored as we're using absolute points
+      points,
+      color
+    );
+    rock.setDepth(5 - distance * 3);
+
+    // Add to the array
+    this.sideElements.push(rock);
+  }
+
+  /**
+   * Creates a bush element
+   *
+   * @param {number} x - The x position
+   * @param {number} y - The y position
+   * @param {number} width - The width
+   * @param {number} height - The height
+   * @param {number} distance - The distance from viewer (0-1)
+   */
+  createBush(x, y, width, height, distance) {
+    // Random bush color (various greens)
+    const colors = [0x228B22, 0x006400, 0x32CD32, 0x556B2F];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+
+    // Create multiple circles to form a bush
+    const circleCount = 3 + Math.floor(Math.random() * 3);
+    const circles = [];
+
+    for (let i = 0; i < circleCount; i++) {
+      const offsetX = (Math.random() - 0.5) * width * 0.5;
+      const offsetY = (Math.random() - 0.5) * height * 0.5;
+      const radius = (width * 0.3) * (0.7 + Math.random() * 0.6);
+
+      const circle = this.add.circle(
+        x + offsetX,
+        y + offsetY,
+        radius,
+        color
+      );
+      circle.setDepth(5 - distance * 3);
+      circles.push(circle);
+    }
+
+    // Add all circles to the array
+    this.sideElements.push(...circles);
   }
 
   /**
@@ -770,6 +1331,9 @@ export class PerspectiveScene extends Phaser.Scene {
 
     // Check for near misses
     this.detectNearMiss();
+
+    // Update weather effects
+    this.updateWeatherEffects(delta);
   }
 
   /**
@@ -1669,5 +2233,165 @@ export class PerspectiveScene extends Phaser.Scene {
 
     // Destroy the projectile sprite
     projectile.destroy();
+  }
+
+  /**
+   * Updates weather effects animation
+   *
+   * @param {number} delta - Time elapsed since last update in ms
+   */
+  updateWeatherEffects(delta) {
+    // Update rain animation
+    if (this.raindrops && this.raindrops.length > 0) {
+      this.raindrops.forEach(drop => {
+        // Move the raindrop
+        drop.x += drop.velocityX * (delta / 16);
+        drop.y += drop.velocityY * (delta / 16);
+
+        // Reset position if off-screen
+        if (drop.y > this.gameHeight) {
+          drop.x = Math.random() * this.gameWidth;
+          drop.y = -20;
+        }
+        if (drop.x > this.gameWidth) {
+          drop.x = -20;
+          drop.y = Math.random() * this.gameHeight;
+        }
+      });
+    }
+
+    // Update fog animation (subtle movement)
+    if (this.fogLayer) {
+      // Slowly move the fog for a dynamic effect
+      this.fogLayer.x += Math.sin(this.time.now / 5000) * 0.2;
+    }
+
+    // Randomly change weather every 30 seconds (for demo purposes)
+    if (Phaser.Math.Between(1, 1800) === 1) { // Approximately every 30 seconds at 60fps
+      const weathers = ['clear', 'rain', 'fog'];
+      const currentIndex = weathers.indexOf(this.config.weather);
+      const nextIndex = (currentIndex + 1) % weathers.length;
+      this.setWeather(weathers[nextIndex], 0.7);
+    }
+
+    // Randomly change time of day every 60 seconds (for demo purposes)
+    if (Phaser.Math.Between(1, 3600) === 1) { // Approximately every 60 seconds at 60fps
+      const times = ['day', 'dusk', 'night', 'dawn'];
+      const currentIndex = times.indexOf(this.config.timeOfDay);
+      const nextIndex = (currentIndex + 1) % times.length;
+      this.setTimeOfDay(times[nextIndex]);
+    }
+  }
+
+  /**
+   * Sets the time of day
+   *
+   * @param {string} timeOfDay - The time of day ('day', 'dusk', 'night', 'dawn')
+   */
+  setTimeOfDay(timeOfDay) {
+    // Store the current time of day
+    this.config.timeOfDay = timeOfDay;
+
+    // Recreate the sky and horizon with the new time of day
+    if (this.sky) this.sky.destroy();
+    if (this.horizonLine) this.horizonLine.destroy();
+    if (this.ground) this.ground.destroy();
+    if (this.stars) this.stars.forEach(star => star.destroy());
+
+    // Create the new sky and horizon
+    this.createSkyAndHorizon();
+
+    // Update distance fog
+    if (this.distanceFog) {
+      this.distanceFog.destroy();
+      this.createDistanceFog();
+    }
+
+    // Apply lighting effects based on time of day
+    this.applyLightingEffects();
+  }
+
+  /**
+   * Applies lighting effects based on time of day
+   */
+  applyLightingEffects() {
+    if (!this.config.enableLighting) return;
+
+    // Remove any existing lighting effects
+    if (this.lightingContainer) {
+      this.lightingContainer.destroy();
+    }
+
+    // Create a new container for lighting effects
+    this.lightingContainer = this.add.container(0, 0);
+    this.lightingContainer.setDepth(90); // Above most elements but below UI
+
+    // Apply different lighting effects based on time of day
+    switch (this.config.timeOfDay) {
+      case 'dawn':
+        // Soft orange overlay
+        this.createLightingOverlay(0xE67E22, 0.1);
+        break;
+      case 'day':
+        // No special lighting effects for day
+        break;
+      case 'dusk':
+        // Red-orange overlay
+        this.createLightingOverlay(0xE74C3C, 0.15);
+        break;
+      case 'night':
+        // Dark blue overlay with vignette
+        this.createLightingOverlay(0x0D0D2D, 0.3);
+        this.createVignette(0.4);
+        break;
+    }
+  }
+
+  /**
+   * Creates a colored overlay for lighting effects
+   *
+   * @param {number} color - The color of the overlay
+   * @param {number} alpha - The alpha (opacity) of the overlay
+   */
+  createLightingOverlay(color, alpha) {
+    const overlay = this.add.rectangle(
+      this.gameWidth / 2,
+      this.gameHeight / 2,
+      this.gameWidth,
+      this.gameHeight,
+      color,
+      alpha
+    );
+
+    this.lightingContainer.add(overlay);
+  }
+
+  /**
+   * Creates a vignette effect (darkened edges)
+   *
+   * @param {number} intensity - The intensity of the vignette effect (0-1)
+   */
+  createVignette(intensity) {
+    // Create a radial gradient for the vignette
+    const graphics = this.add.graphics();
+
+    // Create a radial gradient from transparent in the center to dark at the edges
+    const centerX = this.gameWidth / 2;
+    const centerY = this.gameHeight / 2;
+    const radius = Math.max(this.gameWidth, this.gameHeight) * 0.7;
+
+    // Draw the vignette using a filled circle with a gradient
+    graphics.fillStyle(0x000000, intensity);
+    graphics.fillCircle(centerX, centerY, radius);
+
+    // Create a mask to invert the vignette (dark edges, transparent center)
+    const mask = this.add.graphics();
+    mask.fillStyle(0xFFFFFF, 1);
+    mask.fillRect(0, 0, this.gameWidth, this.gameHeight);
+
+    // Apply the mask to create the vignette effect
+    graphics.setMask(new Phaser.Display.Masks.GeometryMask(this, mask));
+
+    this.lightingContainer.add(graphics);
   }
 }
