@@ -38,7 +38,8 @@ export class MainScene extends Phaser.Scene {
       buttonScaleSpeed: 200,  // Speed of button scale animation in ms
       showFPS: true,          // Whether to show the FPS counter
       maxDepthElements: 10,   // Maximum number of depth elements to create
-      cullingThreshold: 100   // Distance in pixels beyond which objects are culled
+      cullingThreshold: 100,  // Distance in pixels beyond which objects are culled
+      controlAreaHeight: 0.25 // Height of the control area as a percentage of the game height
     };
 
     // Game state
@@ -49,7 +50,11 @@ export class MainScene extends Phaser.Scene {
       menuOpen: false,
       confirmDialogOpen: false,
       frameCount: 0,          // Counter for frames
-      lastOptimizationTime: 0 // Timestamp of last optimization check
+      lastOptimizationTime: 0, // Timestamp of last optimization check
+      isDragging: false,      // Whether the player is currently dragging
+      dragX: 0,               // X position of the drag
+      dragStartX: 0,          // Starting X position of the drag
+      clickHoldX: 0           // X position of click-hold gesture
     };
 
     // Performance monitoring
@@ -218,46 +223,102 @@ export class MainScene extends Phaser.Scene {
 
   /**
    * Sets up input handlers for character movement
+   * Implements touch controls in the bottom quarter of the screen
+   * Supports click-hold and drag gestures
    */
   setupInputHandlers() {
-    // Left half of the screen - move left
-    const leftZone = this.add.zone(
-      this.gameWidth / 4,          // x position (1/4 of the screen)
-      this.gameHeight / 2,         // y position (center)
-      this.gameWidth / 2,          // width (half the screen)
-      this.gameHeight              // height (full screen)
+    // Calculate the control area dimensions (bottom quarter of the screen)
+    const controlAreaHeight = this.gameHeight * this.config.controlAreaHeight;
+    const controlAreaY = this.gameHeight - (controlAreaHeight / 2);
+
+    // Create a debug rectangle to visualize the control area (can be removed in production)
+    this.controlAreaDebug = this.add.rectangle(
+      this.gameWidth / 2,
+      controlAreaY,
+      this.gameWidth,
+      controlAreaHeight,
+      0x0000ff,
+      0.1
+    ).setOrigin(0.5);
+
+    // Create the control area zone
+    this.controlArea = this.add.zone(
+      this.gameWidth / 2,          // x position (center)
+      controlAreaY,                // y position (bottom quarter)
+      this.gameWidth,              // width (full screen width)
+      controlAreaHeight            // height (quarter of the screen height)
     ).setOrigin(0.5).setInteractive();
 
-    leftZone.on('pointerdown', () => {
-      this.state.isMovingLeft = true;
+    // Handle pointer down (click/touch start)
+    this.controlArea.on('pointerdown', (pointer) => {
+      // Store the initial position for drag detection
+      this.state.dragStartX = pointer.x;
+      this.state.dragX = pointer.x;
+
+      // Determine if we're clicking to the left or right of the character
+      if (pointer.x < this.character.x) {
+        this.state.isMovingLeft = true;
+        this.state.isMovingRight = false;
+        this.state.clickHoldX = pointer.x;
+      } else if (pointer.x > this.character.x) {
+        this.state.isMovingRight = true;
+        this.state.isMovingLeft = false;
+        this.state.clickHoldX = pointer.x;
+      }
     });
 
-    leftZone.on('pointerup', () => {
+    // Handle pointer move (drag)
+    this.controlArea.on('pointermove', (pointer) => {
+      if (pointer.isDown) {
+        // Calculate the drag distance
+        const dragDistance = pointer.x - this.state.dragStartX;
+
+        // If the drag distance is significant, consider it a drag operation
+        if (Math.abs(dragDistance) > 10) {
+          this.state.isDragging = true;
+          this.state.dragX = pointer.x;
+
+          // Prioritize drag over click-hold
+          // Update movement direction based on drag direction
+          if (dragDistance < 0) {
+            this.state.isMovingLeft = true;
+            this.state.isMovingRight = false;
+          } else {
+            this.state.isMovingRight = true;
+            this.state.isMovingLeft = false;
+          }
+        }
+      }
+    });
+
+    // Handle pointer up (click/touch end)
+    this.controlArea.on('pointerup', () => {
+      // Reset all movement states
       this.state.isMovingLeft = false;
+      this.state.isMovingRight = false;
+      this.state.isDragging = false;
     });
 
-    leftZone.on('pointerout', () => {
+    // Handle pointer out (leaving the control area)
+    this.controlArea.on('pointerout', () => {
+      // Reset all movement states
       this.state.isMovingLeft = false;
+      this.state.isMovingRight = false;
+      this.state.isDragging = false;
     });
 
-    // Right half of the screen - move right
-    const rightZone = this.add.zone(
-      this.gameWidth * 3/4,        // x position (3/4 of the screen)
-      this.gameHeight / 2,         // y position (center)
-      this.gameWidth / 2,          // width (half the screen)
-      this.gameHeight              // height (full screen)
+    // Add input for the rest of the screen (to be ignored)
+    const nonControlArea = this.add.zone(
+      this.gameWidth / 2,          // x position (center)
+      this.gameHeight / 2 - controlAreaHeight / 2, // y position (top 3/4)
+      this.gameWidth,              // width (full screen width)
+      this.gameHeight - controlAreaHeight // height (3/4 of the screen height)
     ).setOrigin(0.5).setInteractive();
 
-    rightZone.on('pointerdown', () => {
-      this.state.isMovingRight = true;
-    });
-
-    rightZone.on('pointerup', () => {
-      this.state.isMovingRight = false;
-    });
-
-    rightZone.on('pointerout', () => {
-      this.state.isMovingRight = false;
+    // Ignore inputs in the non-control area
+    nonControlArea.on('pointerdown', (pointer) => {
+      // Only allow interaction if it's with the menu button or other UI elements
+      // This effectively ignores movement controls outside the control area
     });
   }
 
@@ -530,12 +591,23 @@ export class MainScene extends Phaser.Scene {
     this.road.tilePositionY += this.config.roadSpeed;
 
     // Update character position based on input
-    if (this.state.isMovingLeft && this.character.x > this.leftBoundary) {
-      this.character.x -= this.config.characterSpeed;
-    }
+    // Prioritize drag gestures over click-hold
+    if (this.state.isDragging) {
+      // Move based on drag position relative to character
+      if (this.state.isMovingLeft && this.character.x > this.leftBoundary) {
+        this.character.x -= this.config.characterSpeed;
+      } else if (this.state.isMovingRight && this.character.x < this.rightBoundary) {
+        this.character.x += this.config.characterSpeed;
+      }
+    } else {
+      // Handle click-hold movement
+      if (this.state.isMovingLeft && this.character.x > this.leftBoundary) {
+        this.character.x -= this.config.characterSpeed;
+      }
 
-    if (this.state.isMovingRight && this.character.x < this.rightBoundary) {
-      this.character.x += this.config.characterSpeed;
+      if (this.state.isMovingRight && this.character.x < this.rightBoundary) {
+        this.character.x += this.config.characterSpeed;
+      }
     }
 
     // Update depth elements with culling optimization
