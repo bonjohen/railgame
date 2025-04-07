@@ -1537,9 +1537,9 @@ export class PerspectiveScene extends Phaser.Scene {
       // Calculate normalized offset from center (-0.5 to 0.5)
       const normalizedOffset = (obstacle.lane - (this.config.laneCount - 1) / 2) / this.config.laneCount;
 
-      // At horizon, lanes converge; at bottom, they're at their full positions
-      // Interpolate between horizon position (center) and final lane position
-      const horizonX = centerX + (normalizedOffset * this.gameWidth * this.config.roadWidth * 0.1);
+      // At horizon, lanes converge at the exact center (vanishing point); at bottom, they're at their full positions
+      // Interpolate between horizon position (exact center) and final lane position
+      const horizonX = centerX; // All obstacles start at the exact center (vanishing point)
       obstacle.x = Phaser.Math.Linear(horizonX, lanePosition, distanceFromHorizon);
 
       // Update shadow position and scale
