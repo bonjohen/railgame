@@ -10,48 +10,63 @@ import { AssetManager } from '../assets/asset-manager';
 import { PerformanceMonitor } from '../utils/performance-monitor';
 import { DeviceDetector } from '../utils/device-detector';
 
+// Import managers
+import { GameConfig } from '../game/config/GameConfig';
+import { RoadManager } from '../game/road/RoadManager';
+import { CharacterManager } from '../game/character/CharacterManager';
+import { ProjectileManager } from '../game/projectiles/ProjectileManager';
+import { UIManager } from '../game/ui/UIManager';
+import { EnvironmentManager } from '../game/environment/EnvironmentManager';
+
 export class PerspectiveScene extends Phaser.Scene {
   /**
    * Create a new PerspectiveScene
    */
   constructor() {
     super('PerspectiveScene');
+  }
 
-    // Game configuration
-    this.config = {
-      roadSpeed: 2,           // Speed of the road scrolling
-      characterSpeed: 5,      // Speed of character movement
-      roadWidth: 0.6,         // Width of the road as a percentage of the game width
-      segmentCount: 30,       // Number of road segments to create (increased for smoother appearance)
-      horizonLine: 0.3,       // Position of the horizon line (percentage from top)
-      cameraHeight: 1000,     // Virtual camera height
-      cameraDepth: 0.84,      // Camera depth (field of view)
-      laneCount: 7,           // Number of lanes (increased for more positions)
-      showFPS: true,          // Whether to show the FPS counter
-      maxDepthElements: 20,   // Maximum number of depth elements to create
-      cullingThreshold: 100,  // Distance in pixels beyond which objects are culled
-      controlAreaHeight: 0.25, // Height of the control area as a percentage of the game height
-      touchSensitivity: 1.0,  // Touch sensitivity adjustment factor
-      uiScale: 1.0,           // UI scaling factor for high-resolution screens
-      topBarHeight: 60,       // Height of the top bar in pixels
-      health: 100,            // Initial health value
-      maxHealth: 100,         // Maximum health value
-      score: 0,               // Initial score value
-      progress: 0,            // Initial progress value (0-100)
-      projectileSpeed: 7.5,   // Speed of projectiles (3x character speed)
-      fireRate: 500,          // Minimum time between shots in milliseconds
-      sparkleSize: 15,        // Size of the sparkle projectile
-      obstacleSpawnInterval: 2000, // Time between obstacle spawns in ms
-      obstacleSpeed: 2,       // Speed of obstacles moving down the road
+  /**
+   * Initialize the scene
+   */
+  init() {
+    // Create game configuration
+    this.config = new GameConfig();
 
-      // Weather and environment effects
-      weather: 'clear',       // Current weather: 'clear', 'rain', 'fog'
-      weatherIntensity: 0.5,  // Intensity of weather effects (0-1)
-      timeOfDay: 'day',       // Time of day: 'day', 'dusk', 'night', 'dawn'
-      fogDistance: 0.7,       // Distance at which fog reaches maximum density (0-1)
-      fogColor: 0xCCCCCC,     // Color of the fog
-      rainCount: 100,         // Number of raindrops to create
-      rainSpeed: 10,          // Speed of rainfall
+    // Get game dimensions
+    this.gameWidth = this.cameras.main.width;
+    this.gameHeight = this.cameras.main.height;
+
+    // Create managers
+    this.roadManager = new RoadManager(this, this.config);
+    this.environmentManager = new EnvironmentManager(this, this.config);
+    this.characterManager = new CharacterManager(this, this.config, this.roadManager);
+    this.projectileManager = new ProjectileManager(this, this.config);
+    this.uiManager = new UIManager(this, this.config);
+
+    // Initialize performance monitor
+    this.performanceMonitor = new PerformanceMonitor();
+
+    // Detect device capabilities
+    this.deviceDetector = new DeviceDetector();
+
+    // Game state
+    this.state = {
+      isHighResolution: this.deviceDetector.isHighResolution(),
+      isPaused: false,
+      menuOpen: false,
+      obstacleSpawnTimer: 0,
+      lastFireTime: 0,
+      dragStartX: 0,
+      dragX: 0,
+      currentLane: Math.floor(this.config.laneCount / 2) // Start in the middle lane
+    };
+
+    // Arrays to store game objects
+    this.projectiles = [];
+    this.obstacles = [];
+    this.sideElements = [];
+  }
       enableLighting: true    // Whether to enable lighting effects
     };
 
