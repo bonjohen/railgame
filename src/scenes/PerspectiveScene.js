@@ -1465,7 +1465,20 @@ export class PerspectiveScene extends Phaser.Scene {
     // Update side elements
     for (let i = 0; i < this.sideElements.length; i++) {
       const element = this.sideElements[i];
-      element.y += this.config.roadSpeed * 0.8; // Slightly slower for parallax effect
+
+      // Calculate current distance from horizon (0-1 scale)
+      const distanceFromHorizon = (element.y - this.gameHeight * this.config.horizonLine) /
+                                 (this.gameHeight - this.gameHeight * this.config.horizonLine);
+
+      // Calculate how much to move based on current position
+      // Elements move faster when closer to viewer for proper perspective
+      const speedFactor = 0.5 + distanceFromHorizon * 1.0; // Range: 0.5x to 1.5x speed
+      const moveDistance = this.config.roadSpeed * 0.8 * speedFactor; // Slightly slower for parallax effect
+
+      // Calculate new position along perspective line
+      const currentDistanceFromTop = element.y - this.gameHeight * this.config.horizonLine;
+      const newDistanceFromTop = currentDistanceFromTop + moveDistance;
+      element.y = this.gameHeight * this.config.horizonLine + newDistanceFromTop;
 
       // If the element goes off screen, move it back to the top
       if (element.y > this.gameHeight + element.height) {
@@ -1473,8 +1486,6 @@ export class PerspectiveScene extends Phaser.Scene {
         element.setScale(0.2); // Small at horizon
       } else {
         // Scale up as it gets closer
-        const distanceFromHorizon = (element.y - this.gameHeight * this.config.horizonLine) /
-                                   (this.gameHeight - this.gameHeight * this.config.horizonLine);
         element.setScale(0.2 + distanceFromHorizon * 0.8);
       }
     }
@@ -1608,12 +1619,30 @@ export class PerspectiveScene extends Phaser.Scene {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const projectile = this.projectiles[i];
 
-      // Move the projectile up toward the horizon
-      projectile.y -= this.config.projectileSpeed;
+      // Calculate current distance from horizon (0-1 scale)
+      let distanceToHorizon = (projectile.y - this.gameHeight * this.config.horizonLine) /
+                             (this.gameHeight - this.gameHeight * this.config.horizonLine);
 
-      // Scale down as it moves toward the horizon
-      const distanceToHorizon = (projectile.y - this.gameHeight * this.config.horizonLine) /
-                               (this.gameHeight - this.gameHeight * this.config.horizonLine);
+      // Calculate how much to move based on current position
+      // Projectiles move faster when further from horizon, slower as they approach
+      const speedFactor = Math.max(0.5, distanceToHorizon * 2); // Range: 0.5x to 2.0x speed
+      const moveDistance = this.config.projectileSpeed * speedFactor;
+
+      // Calculate new position along perspective line
+      const currentDistanceFromHorizon = projectile.y - this.gameHeight * this.config.horizonLine;
+      const newDistanceFromHorizon = Math.max(0, currentDistanceFromHorizon - moveDistance);
+      projectile.y = this.gameHeight * this.config.horizonLine + newDistanceFromHorizon;
+
+      // Recalculate distance to horizon after movement
+      distanceToHorizon = (projectile.y - this.gameHeight * this.config.horizonLine) /
+                         (this.gameHeight - this.gameHeight * this.config.horizonLine);
+
+      // Update X position to move toward the vanishing point as it approaches the horizon
+      if (projectile.initialX !== undefined && projectile.targetX !== undefined) {
+        // Linear interpolation between initial position and vanishing point
+        // As distanceToHorizon approaches 0, projectile.x approaches targetX (vanishing point)
+        projectile.x = Phaser.Math.Linear(projectile.initialX, projectile.targetX, 1 - distanceToHorizon);
+      }
       projectile.setScale(Math.max(0.1, distanceToHorizon * 0.5));
 
       // Update the particle emitter position
@@ -2607,6 +2636,10 @@ export class PerspectiveScene extends Phaser.Scene {
       this.character.y - this.character.height / 2, // Spawn above the character
       'characterTexture' // Reuse character texture for now
     );
+
+    // Store the initial lane position for perspective movement
+    projectile.initialX = this.character.x;
+    projectile.targetX = this.gameWidth / 2; // Center (vanishing point)
 
     // Scale down the projectile
     const projectileSize = this.config.sparkleSize;
