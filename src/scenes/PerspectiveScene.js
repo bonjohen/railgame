@@ -483,13 +483,17 @@ export class PerspectiveScene extends Phaser.Scene {
       reflectionIntensity *= 0.7; // Weaker reflections in fog
     }
 
+    // Create segments from bottom to top (wider at bottom, narrower at top)
     for (let i = 0; i < segmentCount; i++) {
+      // Reverse the index to start from the bottom
+      const reversedIndex = segmentCount - 1 - i;
+
       // Calculate segment position and size
       const segmentHeight = (this.gameHeight - horizonY) / segmentCount;
-      const y = horizonY + (i * segmentHeight);
+      const y = horizonY + (reversedIndex * segmentHeight);
 
       // Calculate width with perspective (narrower toward horizon)
-      const perspective = i / segmentCount;
+      const perspective = reversedIndex / segmentCount;
       const width = this.gameWidth * this.config.roadWidth * (1 - perspective * 0.7);
 
       // Create the segment
@@ -502,10 +506,10 @@ export class PerspectiveScene extends Phaser.Scene {
       );
 
       // Add glossy reflection effect to the road
-      if (i > 0) { // Skip the first segment at the horizon
+      if (reversedIndex > 0) { // Skip the first segment at the horizon
         // Create a reflection highlight on the road
         // The reflection is more visible on the lower part of the road (closer to viewer)
-        const reflectionAlpha = reflectionIntensity * (i / segmentCount); // Stronger reflections closer to viewer
+        const reflectionAlpha = reflectionIntensity * (reversedIndex / segmentCount); // Stronger reflections closer to viewer
 
         // Create a gradient reflection that's stronger in the center of the road
         const reflection = this.add.graphics();
@@ -554,7 +558,7 @@ export class PerspectiveScene extends Phaser.Scene {
 
       // Add lane markings
       if (this.config.laneCount > 1) {
-        this.addLaneMarkings(segment, i, perspective);
+        this.addLaneMarkings(segment, reversedIndex, perspective);
       }
     }
   }
@@ -1473,20 +1477,32 @@ export class PerspectiveScene extends Phaser.Scene {
         });
       }
 
-      // Road borders are static, no need to update
-
       // If the segment goes off screen, move it back to the top
       if (segment.y > this.gameHeight + segment.height) {
-        // Calculate new y position at the top
-        const topSegment = this.roadSegments[0];
-        segment.y = topSegment.y - segment.height;
+        // Find the segment closest to the horizon
+        let horizonSegment = this.roadSegments[0];
+        let minY = Infinity;
 
-        // Move this segment to the beginning of the array
+        for (let j = 0; j < this.roadSegments.length; j++) {
+          if (this.roadSegments[j].y < minY) {
+            minY = this.roadSegments[j].y;
+            horizonSegment = this.roadSegments[j];
+          }
+        }
+
+        // Calculate new y position near the horizon
+        segment.y = minY - segment.height;
+
+        // Calculate new width based on perspective
+        const horizonY = this.gameHeight * this.config.horizonLine;
+        const distanceFromHorizon = (segment.y - horizonY) / (this.gameHeight - horizonY);
+        const newWidth = this.gameWidth * this.config.roadWidth * (1 - distanceFromHorizon * 0.7);
+        segment.width = newWidth;
+
+        // Move this segment to the end of the array
         this.roadSegments.splice(i, 1);
-        this.roadSegments.unshift(segment);
+        this.roadSegments.push(segment);
         i--; // Adjust index since we modified the array
-
-        // Road borders are static, no need to reposition
       }
     }
 
