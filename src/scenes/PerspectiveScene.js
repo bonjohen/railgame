@@ -453,6 +453,7 @@ export class PerspectiveScene extends Phaser.Scene {
 
     // Create road segments that get narrower toward the horizon
     this.roadSegments = [];
+    this.roadBorders = { left: [], right: []}; // Arrays to store road border lines
     const segmentCount = this.config.segmentCount;
 
     // Create a container for reflections
@@ -550,6 +551,9 @@ export class PerspectiveScene extends Phaser.Scene {
       if (this.config.laneCount > 1) {
         this.addLaneMarkings(segment, i, perspective);
       }
+
+      // Add road borders (left and right edges)
+      this.addRoadBorders(segment, i, perspective, width);
     }
   }
 
@@ -713,6 +717,44 @@ export class PerspectiveScene extends Phaser.Scene {
       segment.laneMarkings = segment.laneMarkings || [];
       segment.laneMarkings.push(marking);
     }
+  }
+
+  /**
+   * Adds visible borders to the left and right edges of the road
+   *
+   * @param {Phaser.GameObjects.Rectangle} segment - The road segment
+   * @param {number} segmentIndex - The index of the segment
+   * @param {number} perspective - The perspective factor (0-1)
+   * @param {number} width - The width of the road segment
+   */
+  addRoadBorders(segment, segmentIndex, perspective, width) {
+    // Calculate the left and right edge positions
+    const leftX = segment.x - width / 2;
+    const rightX = segment.x + width / 2;
+
+    // Create the left border
+    const leftBorder = this.add.rectangle(
+      leftX,
+      segment.y,
+      4, // Width of border
+      segment.height, // Height of segment
+      0xFF0000 // Red color
+    );
+    leftBorder.setDepth(6); // Above road
+
+    // Create the right border
+    const rightBorder = this.add.rectangle(
+      rightX,
+      segment.y,
+      4, // Width of border
+      segment.height, // Height of segment
+      0xFF0000 // Red color
+    );
+    rightBorder.setDepth(6); // Above road
+
+    // Store borders in arrays for easy access
+    this.roadBorders.left.push(leftBorder);
+    this.roadBorders.right.push(rightBorder);
   }
 
   /**
@@ -1111,7 +1153,7 @@ export class PerspectiveScene extends Phaser.Scene {
     const characterY = this.gameHeight * 0.75;
 
     // Create the character sprite using the back-view texture
-    this.character = this.add.sprite(
+    this.character = this.physics.add.sprite(
       this.gameWidth / 2,                 // x position (center)
       characterY,                         // y position (in the lower third)
       AssetManager.keys.backViewCharacter // texture key for back-view
@@ -1142,6 +1184,12 @@ export class PerspectiveScene extends Phaser.Scene {
       0.3
     );
     this.characterShadow.setDepth(9);
+
+    // Make character interactive for click/tap firing
+    this.character.setInteractive({ useHandCursor: true });
+    this.character.on('pointerdown', () => {
+      this.fireProjectile();
+    });
   }
 
   /**
@@ -1403,6 +1451,12 @@ export class PerspectiveScene extends Phaser.Scene {
         });
       }
 
+      // Update road borders
+      if (this.roadBorders && this.roadBorders.left.length > i && this.roadBorders.right.length > i) {
+        this.roadBorders.left[i].y += this.config.roadSpeed;
+        this.roadBorders.right[i].y += this.config.roadSpeed;
+      }
+
       // If the segment goes off screen, move it back to the top
       if (segment.y > this.gameHeight + segment.height) {
         // Calculate new y position at the top
@@ -1413,6 +1467,21 @@ export class PerspectiveScene extends Phaser.Scene {
         this.roadSegments.splice(i, 1);
         this.roadSegments.unshift(segment);
         i--; // Adjust index since we modified the array
+
+        // Also move the corresponding road borders
+        if (this.roadBorders && this.roadBorders.left.length > 0 && this.roadBorders.right.length > 0) {
+          // Move left border
+          const leftBorder = this.roadBorders.left.splice(i + 1, 1)[0];
+          leftBorder.y = segment.y;
+          leftBorder.x = segment.x - segment.width / 2;
+          this.roadBorders.left.unshift(leftBorder);
+
+          // Move right border
+          const rightBorder = this.roadBorders.right.splice(i + 1, 1)[0];
+          rightBorder.y = segment.y;
+          rightBorder.x = segment.x + segment.width / 2;
+          this.roadBorders.right.unshift(rightBorder);
+        }
       }
     }
 
@@ -1490,12 +1559,12 @@ export class PerspectiveScene extends Phaser.Scene {
       }
     }
 
-    // Update obstacle spawn timer
-    this.state.obstacleSpawnTimer += delta;
-    if (this.state.obstacleSpawnTimer >= this.config.obstacleSpawnInterval) {
-      this.state.obstacleSpawnTimer = 0;
-      this.createObstacle();
-    }
+    // Obstacle spawning disabled
+    // this.state.obstacleSpawnTimer += delta;
+    // if (this.state.obstacleSpawnTimer >= this.config.obstacleSpawnInterval) {
+    //   this.state.obstacleSpawnTimer = 0;
+    //   this.createObstacle();
+    // }
 
     // Update obstacles
     for (let i = this.obstacles.length - 1; i >= 0; i--) {
