@@ -483,18 +483,15 @@ export class PerspectiveScene extends Phaser.Scene {
       reflectionIntensity *= 0.7; // Weaker reflections in fog
     }
 
-    // Create segments from bottom to top (wider at bottom, narrower at top)
+    // Create segments from horizon to bottom (narrower at horizon, wider at bottom)
     for (let i = 0; i < segmentCount; i++) {
-      // Reverse the index to start from the bottom
-      const reversedIndex = segmentCount - 1 - i;
-
       // Calculate segment position and size
       const segmentHeight = (this.gameHeight - horizonY) / segmentCount;
-      const y = horizonY + (reversedIndex * segmentHeight);
+      const y = horizonY + (i * segmentHeight);
 
       // Calculate width with perspective (narrower toward horizon)
-      const perspective = reversedIndex / segmentCount;
-      const width = this.gameWidth * this.config.roadWidth * (1 - perspective * 0.7);
+      const perspective = i / segmentCount;
+      const width = this.gameWidth * this.config.roadWidth * (perspective * 0.7 + 0.3);
 
       // Create the segment
       const segment = this.add.rectangle(
@@ -506,10 +503,10 @@ export class PerspectiveScene extends Phaser.Scene {
       );
 
       // Add glossy reflection effect to the road
-      if (reversedIndex > 0) { // Skip the first segment at the horizon
+      if (i > 0) { // Skip the first segment at the horizon
         // Create a reflection highlight on the road
         // The reflection is more visible on the lower part of the road (closer to viewer)
-        const reflectionAlpha = reflectionIntensity * (reversedIndex / segmentCount); // Stronger reflections closer to viewer
+        const reflectionAlpha = reflectionIntensity * (i / segmentCount); // Stronger reflections closer to viewer
 
         // Create a gradient reflection that's stronger in the center of the road
         const reflection = this.add.graphics();
@@ -558,7 +555,7 @@ export class PerspectiveScene extends Phaser.Scene {
 
       // Add lane markings
       if (this.config.laneCount > 1) {
-        this.addLaneMarkings(segment, reversedIndex, perspective);
+        this.addLaneMarkings(segment, i, perspective);
       }
     }
   }
