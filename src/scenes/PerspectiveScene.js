@@ -743,31 +743,23 @@ export class PerspectiveScene extends Phaser.Scene {
     const horizonLeftX = this.gameWidth / 2 - horizonRoadWidth / 2;
     const horizonRightX = this.gameWidth / 2 + horizonRoadWidth / 2;
 
-    // Create the left border (polygon shape to account for perspective)
-    const leftBorder = this.add.polygon(
-      0, 0, // These will be ignored as we're using absolute points
-      [
-        { x: horizonLeftX, y: horizonY },
-        { x: bottomLeftX, y: this.gameHeight },
-        { x: bottomLeftX + 4, y: this.gameHeight },
-        { x: horizonLeftX + 1, y: horizonY }
-      ],
-      0xFF0000 // Red color
-    );
-    leftBorder.setDepth(6); // Above road
+    // Create the left border (line shape to draw from bottom to horizon)
+    const leftBorderLine = this.add.graphics();
+    leftBorderLine.lineStyle(4, 0xFF0000, 1);
+    leftBorderLine.beginPath();
+    leftBorderLine.moveTo(bottomLeftX, this.gameHeight); // Start at bottom
+    leftBorderLine.lineTo(horizonLeftX, horizonY); // Draw to horizon
+    leftBorderLine.strokePath();
+    leftBorderLine.setDepth(6); // Above road
 
-    // Create the right border (polygon shape to account for perspective)
-    const rightBorder = this.add.polygon(
-      0, 0, // These will be ignored as we're using absolute points
-      [
-        { x: horizonRightX, y: horizonY },
-        { x: bottomRightX, y: this.gameHeight },
-        { x: bottomRightX - 4, y: this.gameHeight },
-        { x: horizonRightX - 1, y: horizonY }
-      ],
-      0xFF0000 // Red color
-    );
-    rightBorder.setDepth(6); // Above road
+    // Create the right border (line shape to draw from bottom to horizon)
+    const rightBorderLine = this.add.graphics();
+    rightBorderLine.lineStyle(4, 0xFF0000, 1);
+    rightBorderLine.beginPath();
+    rightBorderLine.moveTo(bottomRightX, this.gameHeight); // Start at bottom
+    rightBorderLine.lineTo(horizonRightX, horizonY); // Draw to horizon
+    rightBorderLine.strokePath();
+    rightBorderLine.setDepth(6); // Above road
   }
 
   /**
