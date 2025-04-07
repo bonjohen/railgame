@@ -1494,9 +1494,21 @@ export class PerspectiveScene extends Phaser.Scene {
       const distanceFromHorizon = (obstacle.y - this.gameHeight * this.config.horizonLine) /
                                  (this.gameHeight - this.gameHeight * this.config.horizonLine);
 
-      // Adjust movement speed based on distance (faster when closer to viewer)
+      // Instead of just moving down, we need to move along a perspective line
+      // Calculate the total distance from horizon to bottom of screen
+      const totalDistance = this.gameHeight - this.gameHeight * this.config.horizonLine;
+
+      // Calculate how far the obstacle should move based on its current position
+      // Objects move faster as they get closer to the viewer
       const speedFactor = 0.5 + distanceFromHorizon * 1.5; // Range: 0.5x to 2.0x speed
-      obstacle.y += this.config.obstacleSpeed * speedFactor;
+      const moveDistance = this.config.obstacleSpeed * speedFactor;
+
+      // Calculate the new distance from horizon
+      const currentDistanceFromTop = obstacle.y - this.gameHeight * this.config.horizonLine;
+      const newDistanceFromTop = currentDistanceFromTop + moveDistance;
+
+      // Calculate the new y position
+      obstacle.y = this.gameHeight * this.config.horizonLine + newDistanceFromTop;
 
       // Scale based on distance from horizon
       obstacle.setScale(0.05 + distanceFromHorizon * 0.95); // Start much smaller at horizon
