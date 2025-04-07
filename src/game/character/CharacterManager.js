@@ -1,6 +1,6 @@
 /**
  * CharacterManager.js
- * 
+ *
  * Manages the creation and updating of the character.
  */
 
@@ -9,7 +9,7 @@ import { AssetManager } from '../../assets/asset-manager';
 export class CharacterManager {
   /**
    * Create a new CharacterManager
-   * 
+   *
    * @param {Phaser.Scene} scene - The scene this manager belongs to
    * @param {GameConfig} config - The game configuration
    * @param {RoadManager} roadManager - The road manager
@@ -20,7 +20,7 @@ export class CharacterManager {
     this.roadManager = roadManager;
     this.gameWidth = scene.cameras.main.width;
     this.gameHeight = scene.cameras.main.height;
-    
+
     // Character properties
     this.character = null;
     this.characterShadow = null;
@@ -29,7 +29,7 @@ export class CharacterManager {
     this.targetX = 0;
     this.lastFireTime = 0;
   }
-  
+
   /**
    * Creates the character sprite
    */
@@ -69,17 +69,26 @@ export class CharacterManager {
       0.3
     );
     this.characterShadow.setDepth(9);
-    
+
     // Make character interactive for click/tap firing
     this.character.setInteractive({ useHandCursor: true });
     this.character.on('pointerdown', () => {
       this.fireProjectile();
     });
+
+    // Add a subtle light bloom effect to the character if enabled
+    if (this.scene.environmentManager && this.config.enableLightBloom) {
+      this.characterBloom = this.scene.environmentManager.createLightBloom(
+        this.character,
+        0.3 * this.config.visualEffectsIntensity, // Low intensity for subtle effect
+        0xFFFFFF // White glow
+      );
+    }
   }
-  
+
   /**
    * Change the character's lane
-   * 
+   *
    * @param {number} direction - The direction to move (-1 for left, 1 for right)
    */
   changeLane(direction) {
@@ -89,20 +98,20 @@ export class CharacterManager {
       0,
       this.config.laneCount - 1
     );
-    
+
     // If we're already in the target lane, do nothing
     if (newLane === this.currentLane) return;
-    
+
     // Update the current lane
     this.currentLane = newLane;
-    
+
     // Calculate the target x position
     this.targetX = this.roadManager.getLanePosition(this.currentLane);
-    
+
     // Set the moving flag
     this.isMoving = true;
   }
-  
+
   /**
    * Fire a projectile from the character
    */
@@ -110,10 +119,10 @@ export class CharacterManager {
     // Check if enough time has passed since the last shot
     const currentTime = this.scene.time.now;
     if (currentTime - this.lastFireTime < this.config.fireRate) return;
-    
+
     // Update the last fire time
     this.lastFireTime = currentTime;
-    
+
     // Create a sparkle projectile
     const projectile = this.scene.add.circle(
       this.character.x,
@@ -122,7 +131,7 @@ export class CharacterManager {
       0xFFFF00, // Yellow color
       1
     );
-    
+
     // Add a glow effect
     const glow = this.scene.add.circle(
       projectile.x,
@@ -131,25 +140,25 @@ export class CharacterManager {
       0xFFFF00, // Yellow color
       0.3
     );
-    
+
     // Store reference to the glow
     projectile.glow = glow;
-    
+
     // Set depth to be above the road but below the character
     projectile.setDepth(9);
     glow.setDepth(8);
-    
+
     // Store the initial and target positions for proper perspective movement
     projectile.initialX = projectile.x;
     projectile.targetX = this.gameWidth / 2; // Center of the road at horizon
-    
+
     // Add to the projectiles array
     this.scene.projectiles.push(projectile);
-    
+
     // Play sound effect
     // this.scene.sound.play('fire');
   }
-  
+
   /**
    * Update the character
    */
@@ -159,7 +168,7 @@ export class CharacterManager {
       // Calculate the distance to move
       const dx = this.targetX - this.character.x;
       const distance = Math.abs(dx);
-      
+
       // If we're close enough to the target, stop moving
       if (distance < 1) {
         this.character.x = this.targetX;
@@ -169,7 +178,7 @@ export class CharacterManager {
         const direction = Math.sign(dx);
         this.character.x += direction * this.config.characterSpeed;
       }
-      
+
       // Update shadow position
       this.characterShadow.x = this.character.x;
     }

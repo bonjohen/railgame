@@ -1,13 +1,13 @@
 /**
  * ProjectileManager.js
- * 
+ *
  * Manages the creation and updating of projectiles.
  */
 
 export class ProjectileManager {
   /**
    * Create a new ProjectileManager
-   * 
+   *
    * @param {Phaser.Scene} scene - The scene this manager belongs to
    * @param {GameConfig} config - The game configuration
    */
@@ -16,14 +16,14 @@ export class ProjectileManager {
     this.config = config;
     this.gameWidth = scene.cameras.main.width;
     this.gameHeight = scene.cameras.main.height;
-    
+
     // Projectiles array
     this.projectiles = [];
   }
-  
+
   /**
    * Create a new projectile
-   * 
+   *
    * @param {number} x - The x position to create the projectile
    * @param {number} y - The y position to create the projectile
    */
@@ -36,7 +36,7 @@ export class ProjectileManager {
       0xFFFF00, // Yellow color
       1
     );
-    
+
     // Add a glow effect
     const glow = this.scene.add.circle(
       projectile.x,
@@ -45,27 +45,36 @@ export class ProjectileManager {
       0xFFFF00, // Yellow color
       0.3
     );
-    
+
     // Store reference to the glow
     projectile.glow = glow;
-    
+
     // Set depth to be above the road but below the character
     projectile.setDepth(9);
     glow.setDepth(8);
-    
+
     // Store the initial and target positions for proper perspective movement
     projectile.initialX = projectile.x;
     projectile.targetX = this.gameWidth / 2; // Center of the road at horizon
-    
+
     // Add to the projectiles array
     this.projectiles.push(projectile);
-    
+
+    // Add light bloom effect if enabled
+    if (this.scene.environmentManager && this.config.enableLightBloom) {
+      projectile.bloom = this.scene.environmentManager.createLightBloom(
+        projectile,
+        0.8 * this.config.visualEffectsIntensity, // High intensity for bright effect
+        0xFFFF00 // Yellow glow matching projectile color
+      );
+    }
+
     return projectile;
   }
-  
+
   /**
    * Remove a projectile
-   * 
+   *
    * @param {Phaser.GameObjects.GameObject} projectile - The projectile to remove
    */
   removeProjectile(projectile) {
@@ -74,16 +83,21 @@ export class ProjectileManager {
     if (index !== -1) {
       this.projectiles.splice(index, 1);
     }
-    
+
     // Destroy the glow effect
     if (projectile.glow) {
       projectile.glow.destroy();
     }
-    
+
+    // Destroy the bloom effect if it exists
+    if (projectile.bloom && projectile.bloom.container) {
+      projectile.bloom.container.destroy();
+    }
+
     // Destroy the projectile
     projectile.destroy();
   }
-  
+
   /**
    * Update all projectiles
    */
@@ -95,21 +109,21 @@ export class ProjectileManager {
       // Calculate current distance from horizon (0-1 scale)
       let distanceToHorizon = (projectile.y - this.gameHeight * this.config.horizonLine) /
                              (this.gameHeight - this.gameHeight * this.config.horizonLine);
-      
+
       // Calculate how much to move based on current position
       // Projectiles move faster when further from horizon, slower as they approach
       const speedFactor = Math.max(0.5, distanceToHorizon * 2); // Range: 0.5x to 2.0x speed
       const moveDistance = this.config.projectileSpeed * speedFactor;
-      
+
       // Calculate new position along perspective line
       const currentDistanceFromHorizon = projectile.y - this.gameHeight * this.config.horizonLine;
       const newDistanceFromHorizon = Math.max(0, currentDistanceFromHorizon - moveDistance);
       projectile.y = this.gameHeight * this.config.horizonLine + newDistanceFromHorizon;
-      
+
       // Recalculate distance to horizon after movement
       distanceToHorizon = (projectile.y - this.gameHeight * this.config.horizonLine) /
                          (this.gameHeight - this.gameHeight * this.config.horizonLine);
-      
+
       // Update X position to move toward the vanishing point as it approaches the horizon
       if (projectile.initialX !== undefined && projectile.targetX !== undefined) {
         // Linear interpolation between initial position and vanishing point
@@ -123,9 +137,19 @@ export class ProjectileManager {
         projectile.glow.setPosition(projectile.x, projectile.y);
         projectile.glow.setScale(projectile.scale * 1.5);
       }
-      
-      // Remove projectiles that reach the horizon
+
+      // Create impact effect and remove projectiles that reach the horizon
       if (projectile.y <= this.gameHeight * this.config.horizonLine) {
+        // Create impact effect if enabled
+        if (this.scene.environmentManager && this.config.enableImpactEffects) {
+          this.scene.environmentManager.createImpactEffect(
+            projectile.x,
+            projectile.y,
+            0.7 * this.config.visualEffectsIntensity, // Medium intensity
+            0xFFFF00 // Yellow color matching projectile
+          );
+        }
+
         this.removeProjectile(projectile);
       }
     }

@@ -1,6 +1,6 @@
 /**
  * GameConfig.js
- * 
+ *
  * Contains the configuration settings for the game.
  */
 
@@ -38,5 +38,12 @@ export class GameConfig {
     this.timeOfDay = 'day';       // Time of day: 'day', 'dusk', 'night', 'dawn'
     this.fogDistance = 0.5;       // Distance at which fog starts to appear (0-1)
     this.fogDensity = 0.3;        // Density of the fog (0-1)
+
+    // Visual effects settings
+    this.enableLensFlare = true;  // Whether to enable lens flare effects
+    this.enableLightBloom = true; // Whether to enable light bloom effects
+    this.enableSpeedEffects = true; // Whether to enable speed effects
+    this.enableImpactEffects = true; // Whether to enable impact effects
+    this.visualEffectsIntensity = 0.7; // Global intensity for visual effects (0-1)
   }
 }

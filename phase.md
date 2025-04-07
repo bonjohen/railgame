@@ -197,8 +197,8 @@ function positionInLane(sprite, lane, distance) {
 - **Implement Advanced Visual Effects**
   - Add shadows that scale with objects [✓]
   - Create reflection effects on the road surface [✓]
-  - Implement lens flare and light bloom effects
-  - Add screen-space effects for speed and impacts
+  - Implement lens flare and light bloom effects [✓]
+  - Add screen-space effects for speed and impacts [✓]
 
 - **Polish User Interface**
   - Adapt HUD elements to the new perspective

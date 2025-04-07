@@ -32,24 +32,24 @@ export class PerspectiveScene extends Phaser.Scene {
   init() {
     // Create game configuration
     this.config = new GameConfig();
-    
+
     // Get game dimensions
     this.gameWidth = this.cameras.main.width;
     this.gameHeight = this.cameras.main.height;
-    
+
     // Create managers
     this.roadManager = new RoadManager(this, this.config);
     this.environmentManager = new EnvironmentManager(this, this.config);
     this.characterManager = new CharacterManager(this, this.config, this.roadManager);
     this.projectileManager = new ProjectileManager(this, this.config);
     this.uiManager = new UIManager(this, this.config);
-    
+
     // Initialize performance monitor
     this.performanceMonitor = new PerformanceMonitor();
-    
+
     // Detect device capabilities
     this.deviceDetector = new DeviceDetector();
-    
+
     // Game state
     this.state = {
       isHighResolution: this.deviceDetector.isHighResolution(),
@@ -61,7 +61,7 @@ export class PerspectiveScene extends Phaser.Scene {
       dragX: 0,
       currentLane: Math.floor(this.config.laneCount / 2) // Start in the middle lane
     };
-    
+
     // Arrays to store game objects
     this.projectiles = [];
     this.obstacles = [];
@@ -84,10 +84,10 @@ export class PerspectiveScene extends Phaser.Scene {
 
     // Create the sky and horizon
     this.environmentManager.createSkyAndHorizon();
-    
+
     // Create static road borders
     this.roadManager.createStaticRoadBorders();
-    
+
     // Create distance fog effect
     this.environmentManager.createDistanceFog();
 
@@ -96,6 +96,16 @@ export class PerspectiveScene extends Phaser.Scene {
 
     // Apply lighting effects
     this.environmentManager.applyLightingEffects();
+
+    // Create lens flare effect based on time of day if enabled
+    if (this.config.enableLensFlare) {
+      this.environmentManager.createLensFlare(null, null, this.config.visualEffectsIntensity);
+    }
+
+    // Create speed effect for motion blur if enabled
+    if (this.config.enableSpeedEffects) {
+      this.speedEffect = this.environmentManager.createSpeedEffect(this.config.visualEffectsIntensity);
+    }
 
     // Create the top bar UI
     this.uiManager.createTopBar();
@@ -150,7 +160,7 @@ export class PerspectiveScene extends Phaser.Scene {
 
     // Create control area for touch/click input
     this.uiManager.createControlArea();
-    
+
     // Handle pointer down (click/touch start)
     this.uiManager.controlArea.on('pointerdown', (pointer) => {
       // Store the initial position for drag detection
@@ -172,38 +182,38 @@ export class PerspectiveScene extends Phaser.Scene {
 
   /**
    * Update the scene
-   * 
+   *
    * @param {number} time - The current time
    * @param {number} delta - The time since the last update
    */
   update(time, delta) {
     // Skip update if game is paused
     if (this.state.isPaused) return;
-    
+
     // Update performance monitor
     this.performanceMonitor.update(time);
-    
+
     // Update FPS counter
     if (this.config.showFPS) {
       this.uiManager.updateFPS(this.performanceMonitor.getFPS());
     }
-    
+
     // Handle keyboard input
     this.handleKeyboardInput();
-    
+
     // Update road
     this.roadManager.update();
-    
+
     // Update character
     this.characterManager.update();
-    
+
     // Update projectiles
     this.projectileManager.update();
-    
+
     // Update environment
     this.environmentManager.update();
   }
-  
+
   /**
    * Handle keyboard input
    */
@@ -214,12 +224,12 @@ export class PerspectiveScene extends Phaser.Scene {
     } else if (Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
       this.characterManager.changeLane(1);
     }
-    
+
     // Space bar for firing
     if (Phaser.Input.Keyboard.JustDown(this.spaceBar)) {
       this.characterManager.fireProjectile();
     }
-    
+
     // ESC key for menu
     if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
       this.uiManager.toggleMenu();

@@ -11,13 +11,13 @@
 
 - [✓] Add shadows that scale with objects
 - [✓] Create reflection effects on the road surface
-- [ ] Implement lens flare and light bloom effects
-- [ ] Add screen-space effects for speed and impacts
+- [✓] Implement lens flare and light bloom effects
+- [✓] Add screen-space effects for speed and impacts
 
 ## Testing
 
-- [ ] Create a test script to verify the implementation
-- [ ] Test the game in the browser to confirm functionality
+- [✓] Create a test script to verify the implementation
+- [✓] Test the game in the browser to confirm functionality
 - [ ] Adapt HUD elements to the new perspective
 
 ## Polish User Interface
