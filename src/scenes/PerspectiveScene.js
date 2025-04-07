@@ -2439,20 +2439,17 @@ export class PerspectiveScene extends Phaser.Scene {
     // Calculate the horizon line position
     const horizonY = this.gameHeight * this.config.horizonLine;
 
-    // Calculate the lane position at the horizon
-    // We need to adjust the x position to account for perspective
-    // Lanes converge at the horizon point
-    const laneWidth = this.gameWidth * this.config.roadWidth / this.config.laneCount;
+    // All lanes should converge to a single vanishing point at the horizon
+    // The vanishing point is at the center of the road at the horizon line
     const centerX = this.gameWidth / 2;
 
-    // Calculate lane offset from center (normalized -0.5 to 0.5)
-    const normalizedOffset = (lane - (this.config.laneCount - 1) / 2) / this.config.laneCount;
-
-    // Apply perspective to the lane position (lanes converge at horizon)
-    // At horizon, all lanes are close to center; at bottom, they're spread out
-    const perspectiveScale = 0.1; // Very small at horizon
-    const x = centerX + (normalizedOffset * this.gameWidth * this.config.roadWidth * perspectiveScale);
+    // At the horizon, all objects should be at or very near the center point
+    // regardless of which lane they're in
+    const x = centerX; // Start exactly at the center (vanishing point)
     const y = horizonY; // Start exactly at horizon
+
+    // Store the target lane for this obstacle (where it will end up at the bottom)
+    const targetLane = lane;
 
     // Create the obstacle sprite
     const obstacle = this.physics.add.sprite(x, y, 'characterTexture');
@@ -2488,11 +2485,11 @@ export class PerspectiveScene extends Phaser.Scene {
     // Store the obstacle in our array for easy access
     this.obstacles.push(obstacle);
 
-    // Store the lane for this obstacle
-    obstacle.lane = lane;
+    // Store the target lane for this obstacle
+    obstacle.lane = targetLane;
 
     // Store the original lane for reference (in case we need it later)
-    obstacle.originalLane = lane;
+    obstacle.originalLane = targetLane;
 
     // Set up a method to update the hitbox based on distance
     obstacle.updateHitboxByDistance = (distance) => {
