@@ -45,7 +45,10 @@ export class PerspectiveScene extends Phaser.Scene {
     this.uiManager = new UIManager(this, this.config);
 
     // Initialize performance monitor
-    this.performanceMonitor = new PerformanceMonitor();
+    this.performanceMonitor = new PerformanceMonitor(this, {
+      showFPS: this.config.showFPS,
+      updateInterval: 1000
+    });
 
     // Detect device capabilities
     this.deviceDetector = new DeviceDetector();

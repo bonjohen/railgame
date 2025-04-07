@@ -45,7 +45,10 @@ export class PerspectiveScene extends Phaser.Scene {
     this.uiManager = new UIManager(this, this.config);
 
     // Initialize performance monitor
-    this.performanceMonitor = new PerformanceMonitor();
+    this.performanceMonitor = new PerformanceMonitor(this, {
+      showFPS: this.config.showFPS,
+      updateInterval: 1000
+    });
 
     // Detect device capabilities
     this.deviceDetector = new DeviceDetector();
@@ -67,9 +70,18 @@ export class PerspectiveScene extends Phaser.Scene {
     this.obstacles = [];
     this.sideElements = [];
   }
-      enableLighting: true    // Whether to enable lighting effects
-    };
 
+  /**
+   * Preload assets
+   */
+  preload() {
+    // Assets are preloaded in the LoadingScene
+  }
+
+  /**
+   * Create the scene
+   */
+  create() {
     // Game state
     this.state = {
       isMovingLeft: false,
