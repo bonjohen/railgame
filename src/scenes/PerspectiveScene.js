@@ -126,8 +126,11 @@ export class PerspectiveScene extends Phaser.Scene {
     // Create the sky and horizon
     this.createSkyAndHorizon();
 
-    // Create side elements
-    this.createSideElements();
+    // Initialize empty arrays for side elements, obstacles, and projectiles
+    this.sideElements = [];
+    this.obstacles = [];
+    this.projectiles = [];
+    this.reflections = [];
 
     // Create distance fog effect
     this.createDistanceFog();
@@ -1485,79 +1488,16 @@ export class PerspectiveScene extends Phaser.Scene {
       }
     }
 
-    // Update reflections
-    if (this.reflections && this.reflections.length > 0) {
-      // Remove old reflections that have gone off screen
-      for (let i = this.reflections.length - 1; i >= 0; i--) {
-        const reflection = this.reflections[i];
+    // Reflections updates disabled
+    // if (this.reflections && this.reflections.length > 0) {
+    //   // ... reflections update code ...
+    // }
 
-        // Move the reflection with the road
-        if (reflection.y !== undefined) {
-          reflection.y += this.config.roadSpeed;
-
-          // If it's a puddle with a highlight, move the highlight too
-          if (reflection.highlight) {
-            reflection.highlight.y += this.config.roadSpeed;
-          }
-
-          // Remove reflections that go off screen
-          if (reflection.y > this.gameHeight + 100) {
-            if (reflection.highlight) {
-              reflection.highlight.destroy();
-            }
-            reflection.destroy();
-            this.reflections.splice(i, 1);
-          }
-        } else if (reflection.type === 'Graphics') {
-          // For graphics objects, we need to recreate them at the new position
-          // This is a simplified approach - in a real game, you might use a more efficient method
-          reflection.y += this.config.roadSpeed;
-          if (reflection.y > this.gameHeight + 100) {
-            reflection.destroy();
-            this.reflections.splice(i, 1);
-          }
-        }
-      }
-
-      // Occasionally add new puddles if it's raining
-      if (this.config.weather === 'rain' && Phaser.Math.Between(1, 60) === 1) {
-        const horizonY = this.gameHeight * this.config.horizonLine;
-        const segmentHeight = (this.gameHeight - horizonY) / this.config.segmentCount;
-        const y = horizonY + segmentHeight; // Just below horizon
-        const perspective = 0.1; // Near horizon
-        const width = this.gameWidth * this.config.roadWidth * (1 - perspective * 0.7);
-
-        this.createRoadPuddle(y, width, segmentHeight, perspective);
-      }
-    }
-
-    // Update side elements
-    for (let i = 0; i < this.sideElements.length; i++) {
-      const element = this.sideElements[i];
-
-      // Calculate current distance from horizon (0-1 scale)
-      const distanceFromHorizon = (element.y - this.gameHeight * this.config.horizonLine) /
-                                 (this.gameHeight - this.gameHeight * this.config.horizonLine);
-
-      // Calculate how much to move based on current position
-      // Elements move faster when closer to viewer for proper perspective
-      const speedFactor = 0.5 + distanceFromHorizon * 1.0; // Range: 0.5x to 1.5x speed
-      const moveDistance = this.config.roadSpeed * 0.8 * speedFactor; // Slightly slower for parallax effect
-
-      // Calculate new position along perspective line
-      const currentDistanceFromTop = element.y - this.gameHeight * this.config.horizonLine;
-      const newDistanceFromTop = currentDistanceFromTop + moveDistance;
-      element.y = this.gameHeight * this.config.horizonLine + newDistanceFromTop;
-
-      // If the element goes off screen, move it back to the top
-      if (element.y > this.gameHeight + element.height) {
-        element.y = this.gameHeight * this.config.horizonLine;
-        element.setScale(0.2); // Small at horizon
-      } else {
-        // Scale up as it gets closer
-        element.setScale(0.2 + distanceFromHorizon * 0.8);
-      }
-    }
+    // Side elements updates disabled
+    // for (let i = 0; i < this.sideElements.length; i++) {
+    //   const element = this.sideElements[i];
+    //   // ... side element update code ...
+    // }
 
     // Obstacle spawning disabled
     // this.state.obstacleSpawnTimer += delta;
@@ -1566,186 +1506,17 @@ export class PerspectiveScene extends Phaser.Scene {
     //   this.createObstacle();
     // }
 
-    // Update obstacles
-    for (let i = this.obstacles.length - 1; i >= 0; i--) {
-      const obstacle = this.obstacles[i];
+    // Obstacle updates disabled
+    // for (let i = this.obstacles.length - 1; i >= 0; i--) {
+    //   const obstacle = this.obstacles[i];
+    //   // ... obstacle update code ...
+    // }
 
-      // Calculate distance from horizon (0 at horizon, 1 at bottom of screen)
-      const distanceFromHorizon = (obstacle.y - this.gameHeight * this.config.horizonLine) /
-                                 (this.gameHeight - this.gameHeight * this.config.horizonLine);
-
-      // Instead of just moving down, we need to move along a perspective line
-      // Calculate the total distance from horizon to bottom of screen
-      const totalDistance = this.gameHeight - this.gameHeight * this.config.horizonLine;
-
-      // Calculate how far the obstacle should move based on its current position
-      // Objects move faster as they get closer to the viewer
-      const speedFactor = 0.5 + distanceFromHorizon * 1.5; // Range: 0.5x to 2.0x speed
-      const moveDistance = this.config.obstacleSpeed * speedFactor;
-
-      // Calculate the new distance from horizon
-      const currentDistanceFromTop = obstacle.y - this.gameHeight * this.config.horizonLine;
-      const newDistanceFromTop = currentDistanceFromTop + moveDistance;
-
-      // Calculate the new y position
-      obstacle.y = this.gameHeight * this.config.horizonLine + newDistanceFromTop;
-
-      // Scale based on distance from horizon
-      obstacle.setScale(0.05 + distanceFromHorizon * 0.95); // Start much smaller at horizon
-
-      // Update hitbox based on distance
-      if (obstacle.updateHitboxByDistance) {
-        obstacle.updateHitboxByDistance(distanceFromHorizon);
-      }
-
-      // Update x position to maintain proper perspective
-      // As obstacles move away from horizon, they should move toward their lane position
-      const centerX = this.gameWidth / 2;
-      const lanePosition = this.getLanePosition(obstacle.lane);
-
-      // Calculate normalized offset from center (-0.5 to 0.5)
-      const normalizedOffset = (obstacle.lane - (this.config.laneCount - 1) / 2) / this.config.laneCount;
-
-      // At horizon, lanes converge at the exact center (vanishing point); at bottom, they're at their full positions
-      // Interpolate between horizon position (exact center) and final lane position
-      const horizonX = centerX; // All obstacles start at the exact center (vanishing point)
-      obstacle.x = Phaser.Math.Linear(horizonX, lanePosition, distanceFromHorizon);
-
-      // Update shadow position and scale
-      if (obstacle.shadow) {
-        // Position shadow below the obstacle
-        obstacle.shadow.x = obstacle.x;
-        obstacle.shadow.y = obstacle.y + obstacle.height * 0.4 * obstacle.scale;
-
-        // Scale shadow with the obstacle
-        obstacle.shadow.setScale(0.05 + distanceFromHorizon * 0.95);
-
-        // Adjust shadow opacity based on distance (more visible when closer)
-        obstacle.shadow.setAlpha(0.1 + distanceFromHorizon * 0.3);
-
-        // Adjust shadow shape based on time of day
-        if (this.config.timeOfDay === 'day') {
-          // Shorter shadow during day
-          obstacle.shadow.scaleY = obstacle.shadow.scaleX * 0.3;
-        } else if (this.config.timeOfDay === 'dusk' || this.config.timeOfDay === 'dawn') {
-          // Longer shadow during dusk/dawn
-          obstacle.shadow.scaleY = obstacle.shadow.scaleX * 0.6;
-          // Offset shadow position based on sun angle
-          const offset = this.config.timeOfDay === 'dusk' ? -20 : 20;
-          obstacle.shadow.x += offset * distanceFromHorizon;
-        } else if (this.config.timeOfDay === 'night') {
-          // Very faint, diffuse shadow at night
-          obstacle.shadow.scaleY = obstacle.shadow.scaleX * 0.4;
-          obstacle.shadow.setAlpha(0.1 + distanceFromHorizon * 0.1);
-        }
-      }
-
-      // Add or update reflection on the road
-      // Only add reflection when the obstacle is a certain distance from the horizon
-      if (distanceFromHorizon > 0.2) {
-        if (!obstacle.hasReflection) {
-          // Create a reflection for this obstacle
-          this.createObjectReflection(obstacle, 0.3);
-          obstacle.hasReflection = true;
-        } else if (obstacle.reflection) {
-          // Update existing reflection
-          obstacle.reflection.x = obstacle.x;
-          obstacle.reflection.y = obstacle.y + obstacle.height * obstacle.scale * 0.5;
-
-          // Adjust reflection opacity based on weather
-          let reflectionAlpha = 0.3 * distanceFromHorizon;
-
-          if (this.config.weather === 'rain') {
-            reflectionAlpha *= 1.5; // Stronger reflections when wet
-          } else if (this.config.weather === 'fog') {
-            reflectionAlpha *= 0.7; // Weaker reflections in fog
-          }
-
-          obstacle.reflection.setAlpha(reflectionAlpha);
-
-          // Scale the reflection with the obstacle
-          if (obstacle.reflection.scaleX) {
-            obstacle.reflection.setScale(obstacle.scaleX, -obstacle.scaleY * 0.5);
-          }
-        }
-      }
-
-      // Remove obstacles that go off screen
-      if (obstacle.y > this.gameHeight + 50) {
-        this.removeObstacle(obstacle);
-
-        // Increase score when successfully avoiding an obstacle
-        this.config.score += 10;
-        this.updateScore(this.config.score);
-
-        // Update progress
-        this.config.progress = Math.min(100, this.config.progress + 1);
-        this.updateProgressBar(this.config.progress);
-      }
-    }
-
-    // Update projectiles
-    for (let i = this.projectiles.length - 1; i >= 0; i--) {
-      const projectile = this.projectiles[i];
-
-      // Calculate current distance from horizon (0-1 scale)
-      let distanceToHorizon = (projectile.y - this.gameHeight * this.config.horizonLine) /
-                             (this.gameHeight - this.gameHeight * this.config.horizonLine);
-
-      // Calculate how much to move based on current position
-      // Projectiles move faster when further from horizon, slower as they approach
-      const speedFactor = Math.max(0.5, distanceToHorizon * 2); // Range: 0.5x to 2.0x speed
-      const moveDistance = this.config.projectileSpeed * speedFactor;
-
-      // Calculate new position along perspective line
-      const currentDistanceFromHorizon = projectile.y - this.gameHeight * this.config.horizonLine;
-      const newDistanceFromHorizon = Math.max(0, currentDistanceFromHorizon - moveDistance);
-      projectile.y = this.gameHeight * this.config.horizonLine + newDistanceFromHorizon;
-
-      // Recalculate distance to horizon after movement
-      distanceToHorizon = (projectile.y - this.gameHeight * this.config.horizonLine) /
-                         (this.gameHeight - this.gameHeight * this.config.horizonLine);
-
-      // Update X position to move toward the vanishing point as it approaches the horizon
-      if (projectile.initialX !== undefined && projectile.targetX !== undefined) {
-        // Linear interpolation between initial position and vanishing point
-        // As distanceToHorizon approaches 0, projectile.x approaches targetX (vanishing point)
-        projectile.x = Phaser.Math.Linear(projectile.initialX, projectile.targetX, 1 - distanceToHorizon);
-      }
-      projectile.setScale(Math.max(0.1, distanceToHorizon * 0.5));
-
-      // Update the particle emitter position
-      if (projectile.particles) {
-        projectile.particles.setPosition(projectile.x, projectile.y);
-      }
-
-      // Update the glow effect position
-      if (projectile.glow) {
-        projectile.glow.setPosition(projectile.x, projectile.y);
-        projectile.glow.setScale(projectile.scale * 1.5);
-      }
-
-      // Update the shadow position and scale
-      if (projectile.shadow) {
-        // Position shadow below the projectile
-        projectile.shadow.setPosition(
-          projectile.x,
-          projectile.y + projectile.height * 0.3 * projectile.scale
-        );
-
-        // Scale shadow with the projectile
-        const shadowScale = projectile.scale * 0.8;
-        projectile.shadow.setScale(shadowScale, shadowScale * 0.3);
-
-        // Adjust shadow opacity based on distance (fade as it approaches horizon)
-        projectile.shadow.setAlpha(Math.max(0.1, distanceToHorizon * 0.3));
-      }
-
-      // Remove projectiles that reach the horizon
-      if (projectile.y < this.gameHeight * this.config.horizonLine) {
-        this.removeProjectile(projectile);
-      }
-    }
+    // Projectile updates disabled
+    // for (let i = this.projectiles.length - 1; i >= 0; i--) {
+    //   const projectile = this.projectiles[i];
+    //   // ... projectile update code ...
+    // }
 
     // Update invulnerability timer
     if (this.state.isInvulnerable) {
