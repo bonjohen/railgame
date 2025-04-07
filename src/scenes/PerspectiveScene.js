@@ -126,6 +126,9 @@ export class PerspectiveScene extends Phaser.Scene {
     // Create the sky and horizon
     this.createSkyAndHorizon();
 
+    // Create static road borders
+    this.createStaticRoadBorders();
+
     // Initialize empty arrays for side elements, obstacles, and projectiles
     this.sideElements = [];
     this.obstacles = [];
@@ -456,7 +459,6 @@ export class PerspectiveScene extends Phaser.Scene {
 
     // Create road segments that get narrower toward the horizon
     this.roadSegments = [];
-    this.roadBorders = { left: [], right: []}; // Arrays to store road border lines
     const segmentCount = this.config.segmentCount;
 
     // Create a container for reflections
@@ -554,9 +556,6 @@ export class PerspectiveScene extends Phaser.Scene {
       if (this.config.laneCount > 1) {
         this.addLaneMarkings(segment, i, perspective);
       }
-
-      // Add road borders (left and right edges)
-      this.addRoadBorders(segment, i, perspective, width);
     }
   }
 
@@ -723,41 +722,51 @@ export class PerspectiveScene extends Phaser.Scene {
   }
 
   /**
-   * Adds visible borders to the left and right edges of the road
-   *
-   * @param {Phaser.GameObjects.Rectangle} segment - The road segment
-   * @param {number} segmentIndex - The index of the segment
-   * @param {number} perspective - The perspective factor (0-1)
-   * @param {number} width - The width of the road segment
+   * Creates static road borders on the left and right edges
    */
-  addRoadBorders(segment, segmentIndex, perspective, width) {
-    // Calculate the left and right edge positions
-    const leftX = segment.x - width / 2;
-    const rightX = segment.x + width / 2;
+  createStaticRoadBorders() {
+    // Calculate the horizon line position
+    const horizonY = this.gameHeight * this.config.horizonLine;
 
-    // Create the left border
-    const leftBorder = this.add.rectangle(
-      leftX,
-      segment.y,
-      4, // Width of border
-      segment.height, // Height of segment
+    // Calculate the road width at the bottom of the screen
+    const bottomRoadWidth = this.gameWidth * this.config.roadWidth;
+
+    // Calculate the road width at the horizon (narrower due to perspective)
+    const horizonRoadWidth = bottomRoadWidth * 0.1; // Much narrower at horizon
+
+    // Calculate the left and right edge positions at the bottom
+    const bottomLeftX = this.gameWidth / 2 - bottomRoadWidth / 2;
+    const bottomRightX = this.gameWidth / 2 + bottomRoadWidth / 2;
+
+    // Calculate the left and right edge positions at the horizon
+    const horizonLeftX = this.gameWidth / 2 - horizonRoadWidth / 2;
+    const horizonRightX = this.gameWidth / 2 + horizonRoadWidth / 2;
+
+    // Create the left border (polygon shape to account for perspective)
+    const leftBorder = this.add.polygon(
+      0, 0, // These will be ignored as we're using absolute points
+      [
+        { x: horizonLeftX, y: horizonY },
+        { x: bottomLeftX, y: this.gameHeight },
+        { x: bottomLeftX + 4, y: this.gameHeight },
+        { x: horizonLeftX + 1, y: horizonY }
+      ],
       0xFF0000 // Red color
     );
     leftBorder.setDepth(6); // Above road
 
-    // Create the right border
-    const rightBorder = this.add.rectangle(
-      rightX,
-      segment.y,
-      4, // Width of border
-      segment.height, // Height of segment
+    // Create the right border (polygon shape to account for perspective)
+    const rightBorder = this.add.polygon(
+      0, 0, // These will be ignored as we're using absolute points
+      [
+        { x: horizonRightX, y: horizonY },
+        { x: bottomRightX, y: this.gameHeight },
+        { x: bottomRightX - 4, y: this.gameHeight },
+        { x: horizonRightX - 1, y: horizonY }
+      ],
       0xFF0000 // Red color
     );
     rightBorder.setDepth(6); // Above road
-
-    // Store borders in arrays for easy access
-    this.roadBorders.left.push(leftBorder);
-    this.roadBorders.right.push(rightBorder);
   }
 
   /**
@@ -1230,6 +1239,14 @@ export class PerspectiveScene extends Phaser.Scene {
       controlAreaHeight            // height (quarter of the screen height)
     ).setOrigin(0.5).setInteractive();
 
+    // Create a control area for touch/click input
+    this.controlArea = this.add.zone(
+      this.gameWidth / 2,
+      controlAreaY,
+      this.gameWidth,
+      controlAreaHeight
+    ).setOrigin(0.5).setInteractive();
+
     // Handle pointer down (click/touch start)
     this.controlArea.on('pointerdown', (pointer) => {
       // Store the initial position for drag detection
@@ -1240,9 +1257,11 @@ export class PerspectiveScene extends Phaser.Scene {
       if (pointer.x < this.gameWidth / 3) {
         // Left third of screen - move left
         this.changeLane(-1);
+        console.log('Moving left');
       } else if (pointer.x > (this.gameWidth * 2/3)) {
         // Right third of screen - move right
         this.changeLane(1);
+        console.log('Moving right');
       }
     });
   }
@@ -1454,11 +1473,7 @@ export class PerspectiveScene extends Phaser.Scene {
         });
       }
 
-      // Update road borders
-      if (this.roadBorders && this.roadBorders.left.length > i && this.roadBorders.right.length > i) {
-        this.roadBorders.left[i].y += this.config.roadSpeed;
-        this.roadBorders.right[i].y += this.config.roadSpeed;
-      }
+      // Road borders are static, no need to update
 
       // If the segment goes off screen, move it back to the top
       if (segment.y > this.gameHeight + segment.height) {
@@ -1471,20 +1486,7 @@ export class PerspectiveScene extends Phaser.Scene {
         this.roadSegments.unshift(segment);
         i--; // Adjust index since we modified the array
 
-        // Also move the corresponding road borders
-        if (this.roadBorders && this.roadBorders.left.length > 0 && this.roadBorders.right.length > 0) {
-          // Move left border
-          const leftBorder = this.roadBorders.left.splice(i + 1, 1)[0];
-          leftBorder.y = segment.y;
-          leftBorder.x = segment.x - segment.width / 2;
-          this.roadBorders.left.unshift(leftBorder);
-
-          // Move right border
-          const rightBorder = this.roadBorders.right.splice(i + 1, 1)[0];
-          rightBorder.y = segment.y;
-          rightBorder.x = segment.x + segment.width / 2;
-          this.roadBorders.right.unshift(rightBorder);
-        }
+        // Road borders are static, no need to reposition
       }
     }
 
@@ -1512,11 +1514,47 @@ export class PerspectiveScene extends Phaser.Scene {
     //   // ... obstacle update code ...
     // }
 
-    // Projectile updates disabled
-    // for (let i = this.projectiles.length - 1; i >= 0; i--) {
-    //   const projectile = this.projectiles[i];
-    //   // ... projectile update code ...
-    // }
+    // Update projectiles
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const projectile = this.projectiles[i];
+
+      // Calculate current distance from horizon (0-1 scale)
+      let distanceToHorizon = (projectile.y - this.gameHeight * this.config.horizonLine) /
+                             (this.gameHeight - this.gameHeight * this.config.horizonLine);
+
+      // Calculate how much to move based on current position
+      // Projectiles move faster when further from horizon, slower as they approach
+      const speedFactor = Math.max(0.5, distanceToHorizon * 2); // Range: 0.5x to 2.0x speed
+      const moveDistance = this.config.projectileSpeed * speedFactor;
+
+      // Calculate new position along perspective line
+      const currentDistanceFromHorizon = projectile.y - this.gameHeight * this.config.horizonLine;
+      const newDistanceFromHorizon = Math.max(0, currentDistanceFromHorizon - moveDistance);
+      projectile.y = this.gameHeight * this.config.horizonLine + newDistanceFromHorizon;
+
+      // Recalculate distance to horizon after movement
+      distanceToHorizon = (projectile.y - this.gameHeight * this.config.horizonLine) /
+                         (this.gameHeight - this.gameHeight * this.config.horizonLine);
+
+      // Update X position to move toward the vanishing point as it approaches the horizon
+      if (projectile.initialX !== undefined && projectile.targetX !== undefined) {
+        // Linear interpolation between initial position and vanishing point
+        // As distanceToHorizon approaches 0, projectile.x approaches targetX (vanishing point)
+        projectile.x = Phaser.Math.Linear(projectile.initialX, projectile.targetX, 1 - distanceToHorizon);
+      }
+      projectile.setScale(Math.max(0.1, distanceToHorizon * 0.5));
+
+      // Update the glow effect position
+      if (projectile.glow) {
+        projectile.glow.setPosition(projectile.x, projectile.y);
+        projectile.glow.setScale(projectile.scale * 1.5);
+      }
+
+      // Remove projectiles that reach the horizon
+      if (projectile.y <= this.gameHeight * this.config.horizonLine) {
+        this.removeProjectile(projectile);
+      }
+    }
 
     // Update invulnerability timer
     if (this.state.isInvulnerable) {
